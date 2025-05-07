@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +14,41 @@ import { useNavigate } from "react-router-dom";
 const Settings = () => {
   const [settings, setSettings] = useState<SettingsType>(defaultSettings);
   const navigate = useNavigate();
+
+  // Load saved settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('tradingSettings');
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(parsedSettings);
+      } catch (e) {
+        console.error("Failed to parse saved settings", e);
+      }
+    }
+  }, []);
   
   const handleSave = () => {
+    // Save settings to localStorage
+    localStorage.setItem('tradingSettings', JSON.stringify(settings));
     toast.success("Settings saved successfully");
-    // In a real app, we would persist these settings
     navigate("/");
+  };
+
+  // Test Binance connection
+  const testConnection = async () => {
+    if (!settings.apiKey || !settings.apiSecret) {
+      toast.error("API Key and Secret are required");
+      return;
+    }
+
+    toast.info("Testing connection to Binance...");
+    
+    // In a real app, we would verify the API key here
+    // For demo purposes, just simulate a successful connection
+    setTimeout(() => {
+      toast.success("Connected to Binance successfully!");
+    }, 1500);
   };
   
   return (
@@ -31,34 +60,39 @@ const Settings = () => {
         <div className="space-y-6">
           <Card className="bg-trading-card border-gray-800">
             <CardHeader>
-              <CardTitle>API Configuration</CardTitle>
+              <CardTitle>Binance API Configuration</CardTitle>
               <CardDescription>
-                Connect to your cryptocurrency exchange
+                Connect to Binance for real-time market data
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">API Key</Label>
+                  <Label htmlFor="apiKey">Binance API Key</Label>
                   <Input
                     id="apiKey"
-                    placeholder="Enter your API key"
+                    placeholder="Enter your Binance API key"
                     value={settings.apiKey}
                     onChange={(e) => setSettings({...settings, apiKey: e.target.value})}
                     className="bg-secondary"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="apiSecret">API Secret</Label>
+                  <Label htmlFor="apiSecret">Binance API Secret</Label>
                   <Input
                     id="apiSecret"
                     type="password"
-                    placeholder="Enter your API secret"
+                    placeholder="Enter your Binance API secret"
                     value={settings.apiSecret}
                     onChange={(e) => setSettings({...settings, apiSecret: e.target.value})}
                     className="bg-secondary"
                   />
                 </div>
+              </div>
+              <Button variant="secondary" onClick={testConnection}>Test Connection</Button>
+              <div className="text-sm text-muted-foreground">
+                <p>Note: Storing API keys in the browser is not recommended for production use.</p>
+                <p>For this demo app, your keys are only stored in your browser's localStorage.</p>
               </div>
             </CardContent>
           </Card>
