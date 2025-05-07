@@ -69,7 +69,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="BUY">Buy</SelectItem>
                 <SelectItem value="SELL">Sell</SelectItem>
               </SelectContent>
@@ -82,7 +82,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="executed">Executed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
