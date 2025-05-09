@@ -15,6 +15,11 @@ export interface TradeSignal {
   pnl?: number;
   exitPrice?: number;
   exitTime?: string;
+  volume?: number;
+  leverage?: number;
+  duration?: string;
+  exposure?: number;
+  exposurePercentage?: number;
 }
 
 export interface SignalFilter {
@@ -24,6 +29,7 @@ export interface SignalFilter {
   status?: ('active' | 'executed' | 'cancelled' | 'completed')[];
   exchange?: string[];
   source?: ('strategy' | 'telegram' | 'manual')[];
+  minimumVolume?: number;
 }
 
 export interface DashboardStats {
@@ -32,6 +38,15 @@ export interface DashboardStats {
   winRate: number;
   capitalAtRisk: number;
   totalBalance?: number;
+  startingBalance?: number;
+  performanceHistory?: PerformancePoint[];
+}
+
+export interface PerformancePoint {
+  date: string;
+  balance: number;
+  winRate: number;
+  tradesCount: number;
 }
 
 export interface Settings {
@@ -41,4 +56,3 @@ export interface Settings {
   maxRiskPerTrade: number;
   maxOpenTrades: number;
 }
-

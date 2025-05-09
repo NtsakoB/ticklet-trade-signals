@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TradeSignal } from "@/types";
 import { toast } from "sonner";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, formatDistance } from 'date-fns';
 import { Eye, CircleMinus, Clock } from "lucide-react";
 
 interface OpenTradesProps {
@@ -27,6 +27,21 @@ const OpenTrades = ({ trades }: OpenTradesProps) => {
       description: `PnL: ${pnl > 0 ? '+' : ''}${pnl.toFixed(2)} USD`
     });
   };
+  
+  // Calculate duration for each trade
+  const tradesWithDuration = openTrades.map(trade => {
+    const start = new Date(trade.timestamp);
+    const now = new Date();
+    const durationMs = now.getTime() - start.getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const duration = `${hours}h ${minutes}m`;
+    
+    return {
+      ...trade,
+      duration
+    };
+  });
   
   return (
     <Card className="bg-trading-card border-gray-800">
@@ -52,13 +67,15 @@ const OpenTrades = ({ trades }: OpenTradesProps) => {
                   <TableHead>Entry Price</TableHead>
                   <TableHead>Current Price</TableHead>
                   <TableHead>Duration</TableHead>
+                  <TableHead>Leverage</TableHead>
+                  <TableHead>Exposure</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {openTrades.length > 0 ? (
-                  openTrades.map((trade) => {
+                {tradesWithDuration.length > 0 ? (
+                  tradesWithDuration.map((trade) => {
                     // Mock current price for demo purposes
                     const currentPrice = trade.entryPrice * (trade.type === "BUY" ? 1.05 : 0.95);
                     const priceChange = trade.type === "BUY" 
@@ -87,8 +104,19 @@ const OpenTrades = ({ trades }: OpenTradesProps) => {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs">
-                              {formatDistanceToNow(new Date(trade.timestamp))}
+                            <span className="text-xs">{trade.duration}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {trade.leverage || 1}x
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>${trade.exposure?.toFixed(2)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({trade.exposurePercentage?.toFixed(1)}%)
                             </span>
                           </div>
                         </TableCell>
@@ -120,7 +148,7 @@ const OpenTrades = ({ trades }: OpenTradesProps) => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={9} className="h-24 text-center">
                       No open trades.
                     </TableCell>
                   </TableRow>

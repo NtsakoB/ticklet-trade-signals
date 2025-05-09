@@ -9,6 +9,8 @@ import TradeLog from "@/components/TradeLog";
 import OpenTrades from "@/components/OpenTrades";
 import AiLearningChart from "@/components/AiLearningChart";
 import TotalBalance from "@/components/TotalBalance";
+import ProjectionChart from "@/components/ProjectionChart";
+import AiInsights from "@/components/AiInsights";
 import { mockSignals, recentSignals, generateMockStats, completedTrades } from "@/services/mockData";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats } from "@/services/binanceApi";
 import { DashboardStats, TradeSignal } from "@/types";
@@ -16,7 +18,10 @@ import { DashboardStats, TradeSignal } from "@/types";
 const Index = () => {
   // State for when we fall back to mock data
   const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'signals' | 'trades' | 'log' | 'ai'>('signals');
+  const [activeTab, setActiveTab] = useState<'signals' | 'trades' | 'log' | 'ai' | 'projections'>('signals');
+  
+  // Minimum volume filter - default to $50,000
+  const [minimumVolume, setMinimumVolume] = useState(50000);
 
   // Fetch real data from Binance
   const { data: binanceData, isLoading, isError } = useQuery({
@@ -27,7 +32,10 @@ const Index = () => {
   });
 
   // Convert Binance data to signals
-  const signals = useMockData ? mockSignals : (binanceData ? convertToSignals(binanceData) : []);
+  let signals = useMockData ? mockSignals : (binanceData ? convertToSignals(binanceData) : []);
+  
+  // Apply minimum volume filter
+  signals = signals.filter(signal => (signal.volume || 0) >= minimumVolume);
   
   // Calculate stats based on signals
   const stats = useMockData ? generateMockStats() : calculateDashboardStats(signals);
@@ -63,7 +71,11 @@ const Index = () => {
           </div>
           
           {/* Total Balance */}
-          <TotalBalance balance={stats.totalBalance || 10000} />
+          <TotalBalance 
+            balance={stats.totalBalance || 10000} 
+            startingBalance={stats.startingBalance}
+            performanceHistory={stats.performanceHistory}
+          />
           
           {/* Stats Cards */}
           <StatsCards stats={stats} />
@@ -89,11 +101,31 @@ const Index = () => {
               Trade Log
             </button>
             <button 
+              onClick={() => setActiveTab('projections')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'projections' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Projections
+            </button>
+            <button 
               onClick={() => setActiveTab('ai')}
               className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'ai' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
               AI Analytics
             </button>
+          </div>
+          
+          {/* Volume filter */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Minimum Volume: ${minimumVolume.toLocaleString()}</span>
+            <input 
+              type="range" 
+              min="10000" 
+              max="1000000" 
+              step="10000"
+              value={minimumVolume}
+              onChange={(e) => setMinimumVolume(parseInt(e.target.value))}
+              className="w-64"
+            />
           </div>
           
           {/* Main content based on active tab */}
@@ -117,8 +149,18 @@ const Index = () => {
               <TradeLog trades={trades} />
             )}
             
+            {activeTab === 'projections' && (
+              <ProjectionChart 
+                performanceHistory={stats.performanceHistory}
+                stats={stats}
+              />
+            )}
+            
             {activeTab === 'ai' && (
-              <AiLearningChart />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AiLearningChart />
+                <AiInsights />
+              </div>
             )}
           </div>
         </div>
