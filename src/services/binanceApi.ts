@@ -52,7 +52,7 @@ export function convertToSignals(binanceData: any[]): TradeSignal[] {
       
       // Determine if price is increasing or decreasing
       const priceChangePercent = parseFloat(data.priceChangePercent);
-      const type = priceChangePercent >= 0 ? "BUY" : "SELL";
+      const type = priceChangePercent >= 0 ? "BUY" : "SELL" as "BUY" | "SELL";
       const currentPrice = parseFloat(data.lastPrice);
       
       // Calculate targets and stop loss based on current price and volatility
@@ -183,3 +183,4 @@ export function generateProjections(days: number = 30, currentStats: DashboardSt
     };
   });
 }
+
