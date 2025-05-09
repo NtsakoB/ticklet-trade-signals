@@ -11,6 +11,10 @@ export interface TradeSignal {
   timestamp: string;
   status: 'active' | 'executed' | 'cancelled' | 'completed';
   exchange: 'Bybit' | 'Binance' | 'Other';
+  source?: 'strategy' | 'telegram' | 'manual';
+  pnl?: number;
+  exitPrice?: number;
+  exitTime?: string;
 }
 
 export interface SignalFilter {
@@ -19,6 +23,7 @@ export interface SignalFilter {
   confidence?: number;
   status?: ('active' | 'executed' | 'cancelled' | 'completed')[];
   exchange?: string[];
+  source?: ('strategy' | 'telegram' | 'manual')[];
 }
 
 export interface DashboardStats {
@@ -26,6 +31,7 @@ export interface DashboardStats {
   executedTrades: number;
   winRate: number;
   capitalAtRisk: number;
+  totalBalance?: number;
 }
 
 export interface Settings {
@@ -35,3 +41,4 @@ export interface Settings {
   maxRiskPerTrade: number;
   maxOpenTrades: number;
 }
+

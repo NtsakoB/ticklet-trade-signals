@@ -47,6 +47,10 @@ export function convertToSignals(binanceData: any[]): TradeSignal[] {
     const targetMultiplier = type === "BUY" ? 1 + volatility : 1 - volatility;
     const stopLossMultiplier = type === "BUY" ? 1 - (volatility * 0.5) : 1 + (volatility * 0.5);
     
+    // Randomly assign signal source for demonstration
+    const sources = ["strategy", "telegram", "manual"];
+    const source = sources[Math.floor(Math.random() * sources.length)] as "strategy" | "telegram" | "manual";
+    
     return {
       id: data.symbol,
       symbol: data.symbol,
@@ -61,13 +65,16 @@ export function convertToSignals(binanceData: any[]): TradeSignal[] {
       anomaly: Math.abs(priceChangePercent) > 5,
       timestamp: new Date().toISOString(),
       status: "active",
-      exchange: "Binance"
+      exchange: "Binance",
+      source
     };
   });
 }
 
 // Calculate dashboard stats from signals
 export function calculateDashboardStats(signals: TradeSignal[]): DashboardStats {
+  const mockBalance = 25000 + (Math.random() * 5000); // Just for demo purposes
+  
   return {
     activeSignals: signals.filter(s => s.status === "active").length,
     executedTrades: signals.length,
@@ -75,6 +82,7 @@ export function calculateDashboardStats(signals: TradeSignal[]): DashboardStats 
     capitalAtRisk: signals.reduce((sum, signal) => {
       // Simple calculation - 1% of entry price per signal
       return sum + (signal.entryPrice * 0.01);
-    }, 0)
+    }, 0),
+    totalBalance: mockBalance
   };
 }

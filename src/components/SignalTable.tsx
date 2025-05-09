@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Flag } from "lucide-react";
 
 interface SignalTableProps {
   signals: TradeSignal[];
@@ -104,6 +105,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                   <TableHead className="hidden lg:table-cell">Targets</TableHead>
                   <TableHead className="hidden lg:table-cell">Stop Loss</TableHead>
                   <TableHead className="hidden md:table-cell">Confidence</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -135,6 +137,26 @@ export function SignalTable({ signals }: SignalTableProps) {
                           ></div>
                         </div>
                         <span className="text-xs text-gray-400">{(signal.confidence * 100).toFixed(0)}%</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {signal.source === "strategy" ? (
+                            <Badge variant="secondary" className="flex gap-1 items-center">
+                              <Flag className="h-3 w-3" />
+                              <span className="text-xs">Strategy</span>
+                            </Badge>
+                          ) : signal.source === "telegram" ? (
+                            <Badge variant="outline" className="text-blue-400 border-blue-400/20 flex gap-1 items-center">
+                              <Flag className="h-3 w-3" />
+                              <span className="text-xs">Telegram</span>
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="flex gap-1 items-center">
+                              <Flag className="h-3 w-3" />
+                              <span className="text-xs">Manual</span>
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant={
@@ -175,7 +197,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={9} className="h-24 text-center">
                       No signals found.
                     </TableCell>
                   </TableRow>

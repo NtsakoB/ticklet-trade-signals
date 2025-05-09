@@ -5,13 +5,18 @@ import Header from "@/components/Header";
 import StatsCards from "@/components/StatsCards";
 import SignalTable from "@/components/SignalTable";
 import RecentSignals from "@/components/RecentSignals";
-import { mockSignals, recentSignals, generateMockStats } from "@/services/mockData";
+import TradeLog from "@/components/TradeLog";
+import OpenTrades from "@/components/OpenTrades";
+import AiLearningChart from "@/components/AiLearningChart";
+import TotalBalance from "@/components/TotalBalance";
+import { mockSignals, recentSignals, generateMockStats, completedTrades } from "@/services/mockData";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats } from "@/services/binanceApi";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
   // State for when we fall back to mock data
   const [useMockData, setUseMockData] = useState(false);
+  const [activeTab, setActiveTab] = useState<'signals' | 'trades' | 'log' | 'ai'>('signals');
 
   // Fetch real data from Binance
   const { data: binanceData, isLoading, isError } = useQuery({
@@ -29,6 +34,9 @@ const Index = () => {
 
   // Recent signals - use the first 5 signals or mock data if no signals
   const recent = signals.length > 0 ? signals.slice(0, 5) : recentSignals;
+  
+  // Use mock completed trades for the trade log
+  const trades = useMockData ? completedTrades : [];
   
   // If error fetching Binance data, fall back to mock data
   useEffect(() => {
@@ -54,19 +62,64 @@ const Index = () => {
             </span>
           </div>
           
+          {/* Total Balance */}
+          <TotalBalance balance={stats.totalBalance || 10000} />
+          
           {/* Stats Cards */}
           <StatsCards stats={stats} />
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content - Signal Table */}
-            <div className="lg:col-span-2">
-              <SignalTable signals={signals} />
-            </div>
+          {/* Tab buttons */}
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => setActiveTab('signals')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'signals' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Trade Signals
+            </button>
+            <button 
+              onClick={() => setActiveTab('trades')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'trades' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Open Trades
+            </button>
+            <button 
+              onClick={() => setActiveTab('log')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'log' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Trade Log
+            </button>
+            <button 
+              onClick={() => setActiveTab('ai')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'ai' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              AI Analytics
+            </button>
+          </div>
+          
+          {/* Main content based on active tab */}
+          <div>
+            {activeTab === 'signals' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <SignalTable signals={signals} />
+                </div>
+                <div>
+                  <RecentSignals signals={recent} />
+                </div>
+              </div>
+            )}
             
-            {/* Sidebar - Recent Signals */}
-            <div>
-              <RecentSignals signals={recent} />
-            </div>
+            {activeTab === 'trades' && (
+              <OpenTrades trades={signals} />
+            )}
+            
+            {activeTab === 'log' && (
+              <TradeLog trades={trades} />
+            )}
+            
+            {activeTab === 'ai' && (
+              <AiLearningChart />
+            )}
           </div>
         </div>
       </div>
