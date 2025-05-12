@@ -12,7 +12,7 @@ import TotalBalance from "@/components/TotalBalance";
 import ProjectionChart from "@/components/ProjectionChart";
 import AiInsights from "@/components/AiInsights";
 import { mockSignals, recentSignals, generateMockStats, completedTrades } from "@/services/mockData";
-import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats } from "@/services/binanceApi";
+import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
@@ -22,6 +22,9 @@ const Index = () => {
   
   // Minimum volume filter - default to $50,000
   const [minimumVolume, setMinimumVolume] = useState(50000);
+  
+  // Projection days setting
+  const [projectionDays, setProjectionDays] = useState(30);
 
   // Fetch real data from Binance
   const { data: binanceData, isLoading, isError } = useQuery({
@@ -40,6 +43,9 @@ const Index = () => {
   // Calculate stats based on signals
   const stats = useMockData ? generateMockStats() : calculateDashboardStats(signals);
 
+  // Calculate projections
+  const projections = generateProjections(projectionDays, stats);
+  
   // Recent signals - use the first 5 signals or mock data if no signals
   const recent = signals.length > 0 ? signals.slice(0, 5) : recentSignals;
   
@@ -150,10 +156,25 @@ const Index = () => {
             )}
             
             {activeTab === 'projections' && (
-              <ProjectionChart 
-                performanceHistory={stats.performanceHistory}
-                stats={stats}
-              />
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">Projection Days: {projectionDays}</span>
+                  <input 
+                    type="range" 
+                    min="7" 
+                    max="100" 
+                    step="1"
+                    value={projectionDays}
+                    onChange={(e) => setProjectionDays(parseInt(e.target.value))}
+                    className="w-64"
+                  />
+                </div>
+                <ProjectionChart 
+                  performanceHistory={stats.performanceHistory}
+                  projections={projections}
+                  stats={stats}
+                />
+              </div>
             )}
             
             {activeTab === 'ai' && (

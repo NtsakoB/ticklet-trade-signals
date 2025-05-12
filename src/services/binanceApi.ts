@@ -91,7 +91,7 @@ export function convertToSignals(binanceData: any[]): TradeSignal[] {
         confidence: confidenceScore,
         anomaly: Math.abs(priceChangePercent) > 5,
         timestamp,
-        status: "active",
+        status: "active" as "active" | "executed" | "cancelled" | "completed",
         exchange: "Binance",
         source,
         volume,
@@ -183,4 +183,3 @@ export function generateProjections(days: number = 30, currentStats: DashboardSt
     };
   });
 }
-
