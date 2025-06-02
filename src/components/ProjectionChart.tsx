@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PerformancePoint } from "@/types";
-import { generateProjections } from "@/services/binanceApi";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
@@ -10,17 +9,12 @@ import { ChartLine } from "lucide-react";
 
 interface ProjectionChartProps {
   performanceHistory?: PerformancePoint[];
+  projections?: PerformancePoint[];
   stats: any;
 }
 
-const ProjectionChart = ({ performanceHistory = [], stats }: ProjectionChartProps) => {
+const ProjectionChart = ({ performanceHistory = [], projections = [], stats }: ProjectionChartProps) => {
   const [projectionDays, setProjectionDays] = useState<"30" | "60" | "90" | "100">("30");
-  
-  // Generate future projections
-  const projections = generateProjections(
-    parseInt(projectionDays), 
-    { ...stats, performanceHistory }
-  );
   
   // Combine historical data with projections
   const historicalData = (performanceHistory || []).map(point => ({
@@ -28,7 +22,7 @@ const ProjectionChart = ({ performanceHistory = [], stats }: ProjectionChartProp
     type: 'historical'
   }));
   
-  const projectionData = projections.map(point => ({
+  const projectionData = (projections || []).map(point => ({
     ...point,
     type: 'projection'
   }));

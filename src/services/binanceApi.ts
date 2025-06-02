@@ -1,4 +1,3 @@
-
 import { TradeSignal, DashboardStats, PerformancePoint } from "@/types";
 import { toast } from "sonner";
 
@@ -41,69 +40,62 @@ export async function fetchMultipleSymbols(symbols: string[] = DEFAULT_SYMBOLS) 
 }
 
 // Convert Binance data to TradeSignal format
-export function convertToSignals(binanceData: any[]): TradeSignal[] {
-  if (!binanceData || !binanceData.length) return [];
-  
-  return binanceData
-    .map(data => {
-      // Skip coins with volume less than $50,000
-      const volume = parseFloat(data.quoteVolume);
-      if (volume < 50000) return null;
+export const convertToSignals = (data: any[], minimumVolume: number = 50000): TradeSignal[] => {
+  return data
+    .filter(ticker => parseFloat(ticker.volume) * parseFloat(ticker.price) >= minimumVolume)
+    .slice(0, 20) // Limit to top 20 by volume
+    .map((ticker, index) => {
+      const symbol = ticker.symbol;
+      const price = parseFloat(ticker.price);
+      const volume = parseFloat(ticker.volume) * price;
+      const priceChangePercent = parseFloat(ticker.priceChangePercent);
+
+      // Generate trading signal based on price movement and volume
+      const type: "BUY" | "SELL" = priceChangePercent > 0 ? "BUY" : "SELL";
+      const entryPrice = price;
+      const confidenceScore = Math.min(Math.abs(priceChangePercent) / 10 + 0.3, 0.9);
       
-      // Determine if price is increasing or decreasing
-      const priceChangePercent = parseFloat(data.priceChangePercent);
-      const type = priceChangePercent >= 0 ? "BUY" : "SELL" as "BUY" | "SELL";
-      const currentPrice = parseFloat(data.lastPrice);
+      // Calculate targets and stop loss
+      const targets = type === "BUY" 
+        ? [price * 1.02, price * 1.05, price * 1.08]
+        : [price * 0.98, price * 0.95, price * 0.92];
       
-      // Calculate targets and stop loss based on current price and volatility
-      const volatility = Math.abs(priceChangePercent) / 100;
-      const targetMultiplier = type === "BUY" ? 1 + volatility : 1 - volatility;
-      const stopLossMultiplier = type === "BUY" ? 1 - (volatility * 0.5) : 1 + (volatility * 0.5);
+      const stopLoss = type === "BUY" ? price * 0.97 : price * 1.03;
       
-      // Randomly assign signal source for demonstration
-      const sources = ["strategy", "telegram", "manual"];
-      const source = sources[Math.floor(Math.random() * sources.length)] as "strategy" | "telegram" | "manual";
-      
-      // Calculate confidence based on volume and price change
-      const volumeWeight = Math.min(volume / 1000000, 1); // Normalize volume up to $1M
-      const confidenceScore = (Math.min(Math.abs(priceChangePercent) / 10, 1) * 0.7) + (volumeWeight * 0.3);
-      
-      // Calculate leverage based on volatility (inverse relationship)
-      const leverage = Math.max(1, Math.min(10, Math.round(3 / (volatility + 0.2))));
-      
-      // Calculate exposure
-      const exposure = currentPrice * 0.1 * leverage; // 0.1 BTC worth as an example
-      const totalBalance = 25000 + (Math.random() * 5000);
-      const exposurePercentage = (exposure / totalBalance) * 100;
-      
+      // Generate timestamp
       const timestamp = new Date().toISOString();
       
+      // Determine source based on confidence
+      const source: "strategy" | "telegram" | "manual" = confidenceScore > 0.7 ? "strategy" : "telegram";
+      
+      // Calculate leverage based on confidence
+      const leverage = Math.floor(confidenceScore * 10) + 1;
+      
+      // Calculate exposure (mock calculation)
+      const baseExposure = 1000; // Base exposure amount
+      const exposure = baseExposure * leverage * confidenceScore;
+      const exposurePercentage = (exposure / 10000) * 100; // Assuming 10k portfolio
+      
       return {
-        id: `${data.symbol}-${timestamp}`,
-        symbol: data.symbol,
+        id: `signal-${Date.now()}-${index}`,
+        symbol,
         type,
-        entryPrice: currentPrice,
-        targets: [
-          parseFloat((currentPrice * targetMultiplier).toFixed(2)),
-          parseFloat((currentPrice * (targetMultiplier + (type === "BUY" ? 0.02 : -0.02))).toFixed(2))
-        ],
-        stopLoss: parseFloat((currentPrice * stopLossMultiplier).toFixed(2)),
+        entryPrice,
+        targets,
+        stopLoss,
         confidence: confidenceScore,
         anomaly: Math.abs(priceChangePercent) > 5,
         timestamp,
-        status: "active" as "active" | "executed" | "cancelled" | "completed",
-        exchange: "Binance",
+        status: "active" as const,
+        exchange: "Binance" as const,
         source,
         volume,
         leverage,
-        duration: "0h 0m",
         exposure,
         exposurePercentage
       };
-    })
-    .filter(Boolean) // Remove null entries
-    .sort((a, b) => b!.confidence - a!.confidence); // Sort by confidence (highest first)
-}
+    });
+};
 
 // Calculate dashboard stats from signals
 export function calculateDashboardStats(signals: TradeSignal[]): DashboardStats {

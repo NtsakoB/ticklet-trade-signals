@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
@@ -18,7 +17,7 @@ import { DashboardStats, TradeSignal } from "@/types";
 const Index = () => {
   // State for when we fall back to mock data
   const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'signals' | 'trades' | 'log' | 'ai' | 'projections'>('signals');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai'>('overview');
   
   // Minimum volume filter - default to $50,000
   const [minimumVolume, setMinimumVolume] = useState(50000);
@@ -28,14 +27,15 @@ const Index = () => {
 
   // Fetch real data from Binance
   const { data: binanceData, isLoading, isError } = useQuery({
-    queryKey: ['binanceData'],
+    queryKey: ['binanceData', minimumVolume],
     queryFn: () => fetchMultipleSymbols(),
-    refetchInterval: 60000, // Refresh every minute
-    retry: 2
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Convert Binance data to signals
-  let signals = useMockData ? mockSignals : (binanceData ? convertToSignals(binanceData) : []);
+  // Convert to signals or use mock data
+  const signals = useMockData || isError || !binanceData 
+    ? mockSignals 
+    : convertToSignals(binanceData, minimumVolume);
   
   // Apply minimum volume filter
   signals = signals.filter(signal => (signal.volume || 0) >= minimumVolume);
@@ -89,10 +89,10 @@ const Index = () => {
           {/* Tab buttons */}
           <div className="flex flex-wrap gap-2">
             <button 
-              onClick={() => setActiveTab('signals')}
-              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'signals' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'overview' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
-              Trade Signals
+              Overview
             </button>
             <button 
               onClick={() => setActiveTab('trades')}
@@ -101,8 +101,8 @@ const Index = () => {
               Open Trades
             </button>
             <button 
-              onClick={() => setActiveTab('log')}
-              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'log' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+              onClick={() => setActiveTab('logs')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'logs' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
               Trade Log
             </button>
@@ -136,7 +136,7 @@ const Index = () => {
           
           {/* Main content based on active tab */}
           <div>
-            {activeTab === 'signals' && (
+            {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <SignalTable signals={signals} />
@@ -151,7 +151,7 @@ const Index = () => {
               <OpenTrades trades={signals} />
             )}
             
-            {activeTab === 'log' && (
+            {activeTab === 'logs' && (
               <TradeLog trades={trades} />
             )}
             
