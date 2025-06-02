@@ -15,72 +15,165 @@ import BacktestResults from "@/components/BacktestResults";
 import TradingViewChart from "@/components/TradingViewChart";
 import LeverageControl from "@/components/LeverageControl";
 import SignalGenerator from "@/components/SignalGenerator";
-import { mockSignals, recentSignals, generateMockStats, completedTrades } from "@/services/mockData";
+import PaperTradingPanel from "@/components/PaperTradingPanel";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
+import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
+import StorageService from "@/services/storageService";
+import PaperTradingService from "@/services/paperTradingService";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
-  // State for when we fall back to mock data
-  const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper'>('overview');
   
-  // Minimum volume filter - default to $50,000
+  // Signal filtering parameters
   const [minimumVolume, setMinimumVolume] = useState(50000);
+  const [minimumPriceChange, setMinimumPriceChange] = useState(1);
+  const [maxSignals, setMaxSignals] = useState(50);
+  const [minimumConfidence, setMinimumConfidence] = useState(0.3);
   
   // Projection days setting
   const [projectionDays, setProjectionDays] = useState(30);
   
   // Leverage control
   const [currentLeverage, setCurrentLeverage] = useState(10);
+  const [dynamicLeverage, setDynamicLeverage] = useState(false);
   
   // Selected symbol for chart
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
 
-  // Fetch real data from Binance
+  // Fetch enhanced real data from Binance with filtering
   const { data: binanceData, isLoading, isError } = useQuery({
-    queryKey: ['binanceData', minimumVolume],
-    queryFn: () => fetchMultipleSymbols(),
+    queryKey: ['enhancedBinanceData', minimumVolume, minimumPriceChange, maxSignals],
+    queryFn: () => EnhancedBinanceApi.fetchFilteredMarketData({
+      minimumVolume,
+      minimumPriceChange,
+      maxResults: maxSignals
+    }),
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Convert to signals or use mock data, and apply minimum volume filter
-  const signals = useMockData || isError || !binanceData 
-    ? mockSignals.filter(signal => (signal.volume || 0) >= minimumVolume)
-    : convertToSignals(binanceData, minimumVolume).filter(signal => (signal.volume || 0) >= minimumVolume);
+  // Convert to signals using enhanced API
+  const signals = isError || !binanceData 
+    ? []
+    : EnhancedBinanceApi.convertToSignals(binanceData, {
+        minimumConfidence,
+        includeAnomaly: true
+      });
   
-  // Calculate stats based on signals
-  const stats = useMockData ? generateMockStats() : calculateDashboardStats(signals);
+  // Calculate stats based on real stored data
+  const calculateRealStats = (): DashboardStats => {
+    const storedTrades = StorageService.getTrades();
+    const openTrades = storedTrades.filter(t => t.status === 'open');
+    const closedTrades = storedTrades.filter(t => t.status === 'closed');
+    
+    const actualWinRate = StorageService.calculateActualWinRate() / 100;
+    const totalPnL = StorageService.calculateTotalPnL();
+    
+    // Calculate capital at risk from open trades
+    const capitalAtRisk = openTrades.reduce((sum, trade) => {
+      return sum + (trade.quantity * trade.entryPrice * trade.leverage);
+    }, 0);
+    
+    // Get paper trading balance
+    const paperBalance = PaperTradingService.getPaperBalance();
+    
+    // Generate performance history from stored trades
+    const performanceHistory = generatePerformanceHistory(closedTrades, paperBalance);
+    
+    return {
+      activeSignals: signals.length,
+      executedTrades: closedTrades.length,
+      winRate: actualWinRate,
+      capitalAtRisk,
+      totalBalance: paperBalance,
+      startingBalance: 10000,
+      performanceHistory
+    };
+  };
 
-  // Calculate projections
+  const generatePerformanceHistory = (trades: any[], currentBalance: number) => {
+    // Generate last 30 days of performance based on actual trades
+    const days = 30;
+    const history = [];
+    const now = new Date();
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // Find trades on this date
+      const dayTrades = trades.filter(trade => {
+        const tradeDate = new Date(trade.exitTime || trade.entryTime);
+        return tradeDate.toDateString() === date.toDateString();
+      });
+      
+      const dayPnL = dayTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+      const winCount = dayTrades.filter(t => (t.pnl || 0) > 0).length;
+      const dayWinRate = dayTrades.length > 0 ? winCount / dayTrades.length : 0.5;
+      
+      // Calculate cumulative balance (simplified)
+      const balanceChange = i === 0 ? currentBalance : currentBalance - (dayPnL * (i / 10));
+      
+      history.push({
+        date: date.toISOString().split('T')[0],
+        balance: Math.max(balanceChange, currentBalance * 0.8), // Prevent negative balance
+        winRate: dayWinRate,
+        tradesCount: dayTrades.length
+      });
+    }
+    
+    return history;
+  };
+
+  const stats = calculateRealStats();
+
+  // Calculate projections based on actual historical performance
   const projections = generateProjections(projectionDays, stats);
   
-  // Recent signals - use the first 5 signals or mock data if no signals
-  const recent = signals.length > 0 ? signals.slice(0, 5) : recentSignals;
+  // Recent signals - use actual signals
+  const recent = signals.slice(0, 5);
   
-  // Use mock completed trades for the trade log
-  const trades = useMockData ? completedTrades : [];
-  
-  // If error fetching Binance data, fall back to mock data
-  useEffect(() => {
-    if (isError) {
-      setUseMockData(true);
-    }
-  }, [isError]);
+  // Get actual stored trades for the trade log
+  const trades = StorageService.getTrades().filter(t => t.status === 'closed');
 
-  const handleSignalGenerated = (signal: any) => {
-    // Handle new signal generation
+  const handleSignalGenerated = async (signal: any) => {
     console.log('New signal generated:', signal);
     setSelectedSymbol(signal.symbol);
+    
+    // Auto-execute as paper trade if enabled
+    try {
+      await PaperTradingService.executePaperTrade(signal);
+    } catch (error) {
+      console.error('Failed to execute paper trade:', error);
+    }
   };
 
   const handleTradeExecuted = (trade: any) => {
-    // Handle trade execution
     console.log('Trade executed:', trade);
   };
 
   const handleLeverageChange = (leverage: number) => {
     setCurrentLeverage(leverage);
-    console.log('Leverage changed to:', leverage);
+    
+    // Save settings
+    const settings = StorageService.getSettings();
+    StorageService.saveSettings({
+      ...settings,
+      leverage,
+      dynamicLeverage
+    });
+  };
+
+  const handleDynamicLeverageToggle = () => {
+    const newDynamicLeverage = !dynamicLeverage;
+    setDynamicLeverage(newDynamicLeverage);
+    
+    // Save settings
+    const settings = StorageService.getSettings();
+    StorageService.saveSettings({
+      ...settings,
+      dynamicLeverage: newDynamicLeverage
+    });
   };
 
   return (
@@ -93,9 +186,9 @@ const Index = () => {
         <div className="space-y-6">
           {/* Status indicator for data source */}
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${useMockData ? 'bg-amber-500' : 'bg-green-500'}`}></div>
+            <div className={`w-3 h-3 rounded-full ${isError ? 'bg-red-500' : 'bg-green-500'}`}></div>
             <span className="text-sm text-muted-foreground">
-              {useMockData ? 'Using mock data' : 'Connected to Binance API'}
+              {isError ? 'API Error - Check connection' : 'Connected to Binance API (Real Data)'}
               {isLoading && ' (refreshing...)'}
             </span>
           </div>
@@ -123,6 +216,12 @@ const Index = () => {
               className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'trades' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
               Open Trades
+            </button>
+            <button 
+              onClick={() => setActiveTab('paper')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'paper' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Paper Trading
             </button>
             <button 
               onClick={() => setActiveTab('logs')}
@@ -156,18 +255,56 @@ const Index = () => {
             </button>
           </div>
           
-          {/* Volume filter */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Minimum Volume: ${minimumVolume.toLocaleString()}</span>
-            <input 
-              type="range" 
-              min="10000" 
-              max="1000000" 
-              step="10000"
-              value={minimumVolume}
-              onChange={(e) => setMinimumVolume(parseInt(e.target.value))}
-              className="w-64"
-            />
+          {/* Signal filtering controls */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gray-800/50">
+            <div>
+              <span className="text-sm text-muted-foreground">Min Volume: ${minimumVolume.toLocaleString()}</span>
+              <input 
+                type="range" 
+                min="10000" 
+                max="1000000" 
+                step="10000"
+                value={minimumVolume}
+                onChange={(e) => setMinimumVolume(parseInt(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">Min Price Change: {minimumPriceChange}%</span>
+              <input 
+                type="range" 
+                min="0.5" 
+                max="10" 
+                step="0.5"
+                value={minimumPriceChange}
+                onChange={(e) => setMinimumPriceChange(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">Max Signals: {maxSignals}</span>
+              <input 
+                type="range" 
+                min="10" 
+                max="100" 
+                step="10"
+                value={maxSignals}
+                onChange={(e) => setMaxSignals(parseInt(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">Min Confidence: {(minimumConfidence * 100).toFixed(0)}%</span>
+              <input 
+                type="range" 
+                min="0.1" 
+                max="0.9" 
+                step="0.1"
+                value={minimumConfidence}
+                onChange={(e) => setMinimumConfidence(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
           </div>
           
           {/* Main content based on active tab */}
@@ -191,6 +328,10 @@ const Index = () => {
                 <OpenTrades trades={signals} />
                 <TradingViewChart symbol={selectedSymbol} />
               </div>
+            )}
+            
+            {activeTab === 'paper' && (
+              <PaperTradingPanel />
             )}
             
             {activeTab === 'logs' && (
@@ -229,10 +370,34 @@ const Index = () => {
                   onSignalGenerated={handleSignalGenerated}
                   onTradeExecuted={handleTradeExecuted}
                 />
-                <LeverageControl 
-                  currentLeverage={currentLeverage}
-                  onLeverageChange={handleLeverageChange}
-                />
+                <div className="space-y-4">
+                  <LeverageControl 
+                    currentLeverage={currentLeverage}
+                    onLeverageChange={handleLeverageChange}
+                  />
+                  
+                  {/* Dynamic Leverage Toggle */}
+                  <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">Dynamic Leverage</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Automatically adjust leverage based on signal confidence
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleDynamicLeverageToggle}
+                        className={`px-4 py-2 rounded-md transition-colors ${
+                          dynamicLeverage 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-gray-700 text-muted-foreground'
+                        }`}
+                      >
+                        {dynamicLeverage ? 'Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             
