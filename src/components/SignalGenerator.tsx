@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Zap, Play, Pause, Settings } from "lucide-react";
+import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown } from "lucide-react";
+import { fetchMarketData } from "@/services/binanceApi";
 
 interface SignalGeneratorProps {
   onSignalGenerated: (signal: any) => void;
@@ -20,39 +21,92 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
   const [confidence, setConfidence] = useState(0.7);
   const [lastSignal, setLastSignal] = useState<any>(null);
+  const [marketData, setMarketData] = useState<any>(null);
 
   const symbols = [
     "BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "BNBUSDT",
-    "ADAUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "LINKUSDT"
+    "ADAUSDT", "DOGEUSDT", "DOTUSDT", "LINKUSDT", "AVAXUSDT"
   ];
 
-  const generateSignal = async () => {
+  const generateRealSignal = async () => {
     setIsGenerating(true);
     
-    // Simulate signal generation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const signal = {
-      id: `signal-${Date.now()}`,
-      symbol: selectedSymbol,
-      type: Math.random() > 0.5 ? 'BUY' : 'SELL',
-      entryPrice: 45000 + (Math.random() * 10000),
-      targets: [46000, 47000, 48000],
-      stopLoss: 43000,
-      confidence: confidence + (Math.random() * 0.2 - 0.1),
-      timestamp: new Date().toISOString(),
-      source: 'strategy',
-      leverage: Math.floor(Math.random() * 10) + 1,
-      status: 'active'
-    };
+    try {
+      // Fetch real market data from Binance
+      const data = await fetchMarketData(selectedSymbol);
+      
+      if (!data) {
+        toast.error("Failed to fetch market data");
+        setIsGenerating(false);
+        return;
+      }
 
-    setLastSignal(signal);
-    onSignalGenerated(signal);
-    setIsGenerating(false);
+      setMarketData(data);
+      
+      // Generate signal based on real market conditions
+      const price = parseFloat(data.lastPrice);
+      const priceChange = parseFloat(data.priceChangePercent);
+      const volume = parseFloat(data.volume) * price;
+      
+      // Simple signal generation logic based on price movement and volume
+      const isUptrend = priceChange > 0;
+      const isHighVolume = volume > 1000000; // $1M+ volume
+      const volatility = Math.abs(priceChange);
+      
+      // Calculate confidence based on multiple factors
+      let signalConfidence = confidence;
+      if (isHighVolume) signalConfidence += 0.1;
+      if (volatility > 2) signalConfidence += 0.1;
+      if (volatility > 5) signalConfidence += 0.1;
+      signalConfidence = Math.min(signalConfidence, 0.95);
+      
+      // Determine signal type based on technical indicators
+      const signalType = isUptrend && volatility > 1 ? 'BUY' : 'SELL';
+      
+      // Calculate targets and stop loss based on current price
+      const targets = signalType === 'BUY' 
+        ? [price * 1.02, price * 1.05, price * 1.08]
+        : [price * 0.98, price * 0.95, price * 0.92];
+      
+      const stopLoss = signalType === 'BUY' ? price * 0.97 : price * 1.03;
+      
+      // Calculate leverage based on confidence and volatility
+      const leverage = Math.max(1, Math.min(20, Math.floor((signalConfidence * 15) / (volatility / 2 + 1))));
+      
+      const signal = {
+        id: `signal-${Date.now()}`,
+        symbol: selectedSymbol,
+        type: signalType,
+        entryPrice: price,
+        targets,
+        stopLoss,
+        confidence: signalConfidence,
+        timestamp: new Date().toISOString(),
+        source: 'strategy',
+        leverage,
+        status: 'active',
+        marketData: {
+          priceChange: priceChange,
+          volume: volume,
+          high24h: parseFloat(data.highPrice),
+          low24h: parseFloat(data.lowPrice),
+          volatility: volatility
+        }
+      };
+
+      setLastSignal(signal);
+      onSignalGenerated(signal);
+      
+      toast.success(`Real signal generated for ${signal.symbol}`, {
+        description: `${signal.type} at $${signal.entryPrice.toFixed(2)} (${(signal.confidence * 100).toFixed(1)}% confidence)`
+      });
+      
+    } catch (error) {
+      console.error('Error generating signal:', error);
+      toast.error("Failed to generate signal from live data");
+    }
     
-    toast.success(`Signal generated for ${signal.symbol}`, {
-      description: `${signal.type} at $${signal.entryPrice.toFixed(2)} (${(signal.confidence * 100).toFixed(1)}% confidence)`
-    });
+    setIsGenerating(false);
   };
 
   const executeTrade = () => {
@@ -66,7 +120,7 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
     
     onTradeExecuted(trade);
     toast.success(`Trade executed for ${trade.symbol}`, {
-      description: `${trade.type} position opened`
+      description: `${trade.type} position opened with ${trade.leverage}x leverage`
     });
   };
 
@@ -81,7 +135,7 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Signal Generator
+            Live Signal Generator
           </CardTitle>
           <Badge variant={autoMode ? "default" : "outline"}>
             {autoMode ? "Auto" : "Manual"}
@@ -89,6 +143,33 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Market Data Display */}
+        {marketData && (
+          <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+            <h4 className="text-sm font-medium mb-2">Live Market Data - {selectedSymbol}</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Price:</span>
+                <span className="font-medium">${parseFloat(marketData.lastPrice).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">24h Change:</span>
+                <span className={`font-medium ${parseFloat(marketData.priceChangePercent) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {parseFloat(marketData.priceChangePercent).toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">24h High:</span>
+                <span className="font-medium">${parseFloat(marketData.highPrice).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">24h Low:</span>
+                <span className="font-medium">${parseFloat(marketData.lowPrice).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Controls */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -107,7 +188,7 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
             </Select>
           </div>
           <div>
-            <Label htmlFor="confidence">Min Confidence</Label>
+            <Label htmlFor="confidence">Base Confidence</Label>
             <Input
               type="number"
               min="0.1"
@@ -122,7 +203,7 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
         {/* Last Signal Display */}
         {lastSignal && (
           <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
-            <h4 className="text-sm font-medium mb-2">Last Generated Signal</h4>
+            <h4 className="text-sm font-medium mb-2">Latest Generated Signal</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Symbol:</span>
@@ -130,7 +211,8 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Type:</span>
-                <Badge variant={lastSignal.type === 'BUY' ? 'success' : 'destructive'}>
+                <Badge variant={lastSignal.type === 'BUY' ? 'default' : 'destructive'} className="flex items-center gap-1">
+                  {lastSignal.type === 'BUY' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {lastSignal.type}
                 </Badge>
               </div>
@@ -142,6 +224,16 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
                 <span className="text-muted-foreground">Confidence:</span>
                 <span className="font-medium">{(lastSignal.confidence * 100).toFixed(1)}%</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Leverage:</span>
+                <span className="font-medium">{lastSignal.leverage}x</span>
+              </div>
+              {lastSignal.marketData && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Market Volatility:</span>
+                  <span className="font-medium">{lastSignal.marketData.volatility.toFixed(2)}%</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -149,12 +241,12 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-3">
           <Button 
-            onClick={generateSignal}
+            onClick={generateRealSignal}
             disabled={isGenerating}
             className="w-full"
           >
             <Zap className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Generating...' : 'Generate Signal'}
+            {isGenerating ? 'Analyzing...' : 'Generate Live Signal'}
           </Button>
           
           <Button
@@ -179,7 +271,7 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
 
         {autoMode && (
           <div className="text-xs text-center text-muted-foreground">
-            Auto mode will generate and execute signals automatically
+            Auto mode will generate and execute signals based on live market data every 30 seconds
           </div>
         )}
       </CardContent>
