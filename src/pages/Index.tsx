@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
@@ -10,6 +11,10 @@ import AiLearningChart from "@/components/AiLearningChart";
 import TotalBalance from "@/components/TotalBalance";
 import ProjectionChart from "@/components/ProjectionChart";
 import AiInsights from "@/components/AiInsights";
+import BacktestResults from "@/components/BacktestResults";
+import TradingViewChart from "@/components/TradingViewChart";
+import LeverageControl from "@/components/LeverageControl";
+import SignalGenerator from "@/components/SignalGenerator";
 import { mockSignals, recentSignals, generateMockStats, completedTrades } from "@/services/mockData";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import { DashboardStats, TradeSignal } from "@/types";
@@ -17,13 +22,19 @@ import { DashboardStats, TradeSignal } from "@/types";
 const Index = () => {
   // State for when we fall back to mock data
   const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls'>('overview');
   
   // Minimum volume filter - default to $50,000
   const [minimumVolume, setMinimumVolume] = useState(50000);
   
   // Projection days setting
   const [projectionDays, setProjectionDays] = useState(30);
+  
+  // Leverage control
+  const [currentLeverage, setCurrentLeverage] = useState(10);
+  
+  // Selected symbol for chart
+  const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
 
   // Fetch real data from Binance
   const { data: binanceData, isLoading, isError } = useQuery({
@@ -56,12 +67,28 @@ const Index = () => {
     }
   }, [isError]);
 
+  const handleSignalGenerated = (signal: any) => {
+    // Handle new signal generation
+    console.log('New signal generated:', signal);
+    setSelectedSymbol(signal.symbol);
+  };
+
+  const handleTradeExecuted = (trade: any) => {
+    // Handle trade execution
+    console.log('Trade executed:', trade);
+  };
+
+  const handleLeverageChange = (leverage: number) => {
+    setCurrentLeverage(leverage);
+    console.log('Leverage changed to:', leverage);
+  };
+
   return (
     <div className="min-h-screen bg-trading-bg">
       <Header />
       
       <div className="container py-6">
-        <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-6">Advanced Trading Dashboard</h1>
         
         <div className="space-y-6">
           {/* Status indicator for data source */}
@@ -104,10 +131,22 @@ const Index = () => {
               Trade Log
             </button>
             <button 
+              onClick={() => setActiveTab('backtest')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'backtest' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Backtest Results
+            </button>
+            <button 
               onClick={() => setActiveTab('projections')}
               className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'projections' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
               Projections
+            </button>
+            <button 
+              onClick={() => setActiveTab('controls')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'controls' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Trading Controls
             </button>
             <button 
               onClick={() => setActiveTab('ai')}
@@ -134,22 +173,32 @@ const Index = () => {
           {/* Main content based on active tab */}
           <div>
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <SignalTable signals={signals} />
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <SignalTable signals={signals} />
+                  </div>
+                  <div>
+                    <RecentSignals signals={recent} />
+                  </div>
                 </div>
-                <div>
-                  <RecentSignals signals={recent} />
-                </div>
+                <TradingViewChart symbol={selectedSymbol} />
               </div>
             )}
             
             {activeTab === 'trades' && (
-              <OpenTrades trades={signals} />
+              <div className="space-y-6">
+                <OpenTrades trades={signals} />
+                <TradingViewChart symbol={selectedSymbol} />
+              </div>
             )}
             
             {activeTab === 'logs' && (
               <TradeLog trades={trades} />
+            )}
+            
+            {activeTab === 'backtest' && (
+              <BacktestResults />
             )}
             
             {activeTab === 'projections' && (
@@ -170,6 +219,19 @@ const Index = () => {
                   performanceHistory={stats.performanceHistory}
                   projections={projections}
                   stats={stats}
+                />
+              </div>
+            )}
+            
+            {activeTab === 'controls' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <SignalGenerator 
+                  onSignalGenerated={handleSignalGenerated}
+                  onTradeExecuted={handleTradeExecuted}
+                />
+                <LeverageControl 
+                  currentLeverage={currentLeverage}
+                  onLeverageChange={handleLeverageChange}
                 />
               </div>
             )}
