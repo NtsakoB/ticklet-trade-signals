@@ -32,13 +32,10 @@ const Index = () => {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Convert to signals or use mock data
+  // Convert to signals or use mock data, and apply minimum volume filter
   const signals = useMockData || isError || !binanceData 
-    ? mockSignals 
-    : convertToSignals(binanceData, minimumVolume);
-  
-  // Apply minimum volume filter
-  signals = signals.filter(signal => (signal.volume || 0) >= minimumVolume);
+    ? mockSignals.filter(signal => (signal.volume || 0) >= minimumVolume)
+    : convertToSignals(binanceData, minimumVolume).filter(signal => (signal.volume || 0) >= minimumVolume);
   
   // Calculate stats based on signals
   const stats = useMockData ? generateMockStats() : calculateDashboardStats(signals);
