@@ -1,21 +1,21 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { TradeSignal } from "@/types";
 import { format } from 'date-fns';
 import { Book, TrendingDown, TrendingUp, Clock } from "lucide-react";
 
-interface Trade extends TradeSignal {
-  pnl?: number;
-  exitPrice?: number;
-  exitTime?: string;
-  profitPercentage?: number;
+interface SimpleTrade {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  pnl: number;
+  timestamp: string;
+  status: 'completed';
 }
 
 interface TradeLogProps {
-  trades: Trade[];
+  trades: SimpleTrade[];
 }
 
 const TradeLog = ({ trades }: TradeLogProps) => {
@@ -23,13 +23,13 @@ const TradeLog = ({ trades }: TradeLogProps) => {
   
   const filteredTrades = trades.filter(trade => {
     if (filter === 'all') return true;
-    if (filter === 'profit' && (trade.pnl || 0) > 0) return true;
-    if (filter === 'loss' && (trade.pnl || 0) < 0) return true;
+    if (filter === 'profit' && trade.pnl > 0) return true;
+    if (filter === 'loss' && trade.pnl < 0) return true;
     return false;
   });
   
   // Calculate total PnL
-  const totalPnl = trades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+  const totalPnl = trades.reduce((sum, trade) => sum + trade.pnl, 0);
 
   return (
     <Card className="bg-trading-card border-gray-800">
@@ -38,6 +38,9 @@ const TradeLog = ({ trades }: TradeLogProps) => {
           <div className="flex items-center gap-2">
             <Book className="h-5 w-5 text-muted-foreground" />
             <CardTitle>Trade Log</CardTitle>
+            <Badge variant="outline" className="ml-2">
+              Total PnL: ${totalPnl.toFixed(2)}
+            </Badge>
           </div>
           <div className="flex gap-2">
             <Badge 
@@ -45,21 +48,21 @@ const TradeLog = ({ trades }: TradeLogProps) => {
               className="cursor-pointer" 
               onClick={() => setFilter('all')}
             >
-              All
+              All ({trades.length})
             </Badge>
             <Badge 
-              variant={filter === 'profit' ? 'success' : 'outline'} 
-              className="cursor-pointer" 
+              variant={filter === 'profit' ? 'default' : 'outline'} 
+              className="cursor-pointer text-green-400" 
               onClick={() => setFilter('profit')}
             >
-              Profit
+              Profit ({trades.filter(t => t.pnl > 0).length})
             </Badge>
             <Badge 
               variant={filter === 'loss' ? 'destructive' : 'outline'} 
               className="cursor-pointer" 
               onClick={() => setFilter('loss')}
             >
-              Loss
+              Loss ({trades.filter(t => t.pnl < 0).length})
             </Badge>
           </div>
         </div>
@@ -71,90 +74,42 @@ const TradeLog = ({ trades }: TradeLogProps) => {
               <TableHeader>
                 <TableRow className="hover:bg-gray-800">
                   <TableHead>Symbol</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Entry Time</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Exit Time</TableHead>
-                  <TableHead>Entry/Exit</TableHead>
+                  <TableHead>Side</TableHead>
                   <TableHead>PnL</TableHead>
-                  <TableHead>Leverage</TableHead>
-                  <TableHead>Source</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTrades.length > 0 ? (
-                  filteredTrades.map((trade) => {
-                    const entryDate = new Date(trade.timestamp);
-                    const exitDate = trade.exitTime ? new Date(trade.exitTime) : null;
-                    
-                    // Calculate duration if we have both dates
-                    let duration = trade.duration || "—";
-                    if (exitDate) {
-                      const durationMs = exitDate.getTime() - entryDate.getTime();
-                      const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                      duration = `${hours}h ${minutes}m`;
-                    }
-                    
-                    return (
-                      <TableRow key={`${trade.id}-log`} className="hover:bg-gray-800">
-                        <TableCell className="font-medium">{trade.symbol}</TableCell>
-                        <TableCell>
-                          <Badge variant={trade.type === "BUY" ? "success" : "destructive"}>
-                            {trade.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{format(entryDate, 'yyyy-MM-dd HH:mm')}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>{duration}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {exitDate ? format(exitDate, 'yyyy-MM-dd HH:mm') : '—'}
-                        </TableCell>
-                        <TableCell>
-                          ${trade.entryPrice} → ${trade.exitPrice || '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            {trade.pnl !== undefined && (
-                              <>
-                                {trade.pnl > 0 ? (
-                                  <TrendingUp className="h-4 w-4 text-trading-positive mr-1" />
-                                ) : (
-                                  <TrendingDown className="h-4 w-4 text-trading-negative mr-1" />
-                                )}
-                                <span className={trade.pnl > 0 ? "text-trading-positive" : "text-trading-negative"}>
-                                  ${Math.abs(trade.pnl).toFixed(2)} ({trade.profitPercentage && `${trade.profitPercentage > 0 ? '+' : ''}${trade.profitPercentage.toFixed(2)}%`})
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {trade.leverage || 1}x
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {trade.source === "strategy" ? (
-                            <Badge variant="secondary">Strategy</Badge>
-                          ) : trade.source === "telegram" ? (
-                            <Badge variant="outline" className="text-blue-400 border-blue-400/20">
-                              Telegram
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Manual</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  filteredTrades.map((trade) => (
+                    <TableRow key={trade.id} className="hover:bg-gray-800">
+                      <TableCell className="font-medium">{trade.symbol}</TableCell>
+                      <TableCell>
+                        <Badge variant={trade.side === 'BUY' ? 'default' : 'destructive'}>
+                          {trade.side}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={trade.pnl > 0 ? 'default' : 'destructive'}>
+                          {trade.pnl > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                          ${Math.abs(trade.pnl).toFixed(2)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(trade.timestamp), 'HH:mm')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{trade.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       No trades found.
                     </TableCell>
                   </TableRow>

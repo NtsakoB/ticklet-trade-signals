@@ -16,6 +16,7 @@ import TradingViewChart from "@/components/TradingViewChart";
 import LeverageControl from "@/components/LeverageControl";
 import SignalGenerator from "@/components/SignalGenerator";
 import PaperTradingPanel from "@/components/PaperTradingPanel";
+import AiStrategyOptimization from "@/components/AiStrategyOptimization";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import StorageService from "@/services/storageService";
@@ -23,7 +24,7 @@ import PaperTradingService from "@/services/paperTradingService";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization'>('overview');
   
   // Signal filtering parameters
   const [minimumVolume, setMinimumVolume] = useState(50000);
@@ -133,8 +134,18 @@ const Index = () => {
   // Recent signals - use actual signals
   const recent = signals.slice(0, 5);
   
-  // Get actual stored trades for the trade log
-  const trades = StorageService.getTrades().filter(t => t.status === 'closed');
+  // Convert stored trades to the format expected by TradeLog
+  const storedTrades = StorageService.getTrades()
+    .filter(trade => trade.status === 'closed')
+    .slice(0, 10)
+    .map(trade => ({
+      id: trade.id,
+      symbol: trade.symbol,
+      side: trade.type,
+      pnl: trade.pnl || 0,
+      timestamp: trade.exitTime || trade.entryTime,
+      status: 'completed' as const
+    }));
 
   const handleSignalGenerated = async (signal: any) => {
     console.log('New signal generated:', signal);
@@ -253,6 +264,12 @@ const Index = () => {
             >
               AI Analytics
             </button>
+            <button 
+              onClick={() => setActiveTab('optimization')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'optimization' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              AI Optimization
+            </button>
           </div>
           
           {/* Signal filtering controls */}
@@ -335,7 +352,7 @@ const Index = () => {
             )}
             
             {activeTab === 'logs' && (
-              <TradeLog trades={trades} />
+              <TradeLog trades={storedTrades} />
             )}
             
             {activeTab === 'backtest' && (
@@ -406,6 +423,10 @@ const Index = () => {
                 <AiLearningChart />
                 <AiInsights />
               </div>
+            )}
+            
+            {activeTab === 'optimization' && (
+              <AiStrategyOptimization />
             )}
           </div>
         </div>
