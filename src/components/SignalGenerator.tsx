@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,26 +7,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown } from "lucide-react";
+import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { fetchMarketData } from "@/services/binanceApi";
+import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 
 interface SignalGeneratorProps {
   onSignalGenerated: (signal: any) => void;
   onTradeExecuted: (trade: any) => void;
+  minimumVolume?: number;
+  minimumPriceChange?: number;
+  maxSignals?: number;
+  minimumConfidence?: number;
 }
 
-const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGeneratorProps) => {
+const SignalGenerator = ({ 
+  onSignalGenerated, 
+  onTradeExecuted,
+  minimumVolume = 50000,
+  minimumPriceChange = 1,
+  maxSignals = 50,
+  minimumConfidence = 0.3
+}: SignalGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
   const [confidence, setConfidence] = useState(0.7);
   const [lastSignal, setLastSignal] = useState<any>(null);
   const [marketData, setMarketData] = useState<any>(null);
+  const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
+  const [isLoadingSymbols, setIsLoadingSymbols] = useState(false);
 
-  const symbols = [
-    "BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "BNBUSDT",
-    "ADAUSDT", "DOGEUSDT", "DOTUSDT", "LINKUSDT", "AVAXUSDT"
-  ];
+  // Fetch filtered symbols based on criteria
+  const fetchFilteredSymbols = async () => {
+    setIsLoadingSymbols(true);
+    try {
+      const filteredData = await EnhancedBinanceApi.fetchFilteredMarketData({
+        minimumVolume,
+        minimumPriceChange,
+        maxResults: maxSignals
+      });
+      
+      const symbols = filteredData.map(ticker => ticker.symbol);
+      setFilteredSymbols(symbols);
+      
+      // Set first symbol as default if current selection is not in filtered list
+      if (symbols.length > 0 && !symbols.includes(selectedSymbol)) {
+        setSelectedSymbol(symbols[0]);
+      }
+      
+      toast.success(`Found ${symbols.length} symbols matching filter criteria`);
+    } catch (error) {
+      console.error('Error fetching filtered symbols:', error);
+      toast.error("Failed to fetch filtered symbols");
+      // Fallback to default symbols
+      setFilteredSymbols(["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "BNBUSDT"]);
+    }
+    setIsLoadingSymbols(false);
+  };
+
+  // Fetch symbols on component mount and when filters change
+  useEffect(() => {
+    fetchFilteredSymbols();
+  }, [minimumVolume, minimumPriceChange, maxSignals]);
 
   const generateRealSignal = async () => {
     setIsGenerating(true);
@@ -173,13 +215,24 @@ const SignalGenerator = ({ onSignalGenerated, onTradeExecuted }: SignalGenerator
         {/* Controls */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="symbol">Symbol</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="symbol">Symbol ({filteredSymbols.length} available)</Label>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={fetchFilteredSymbols}
+                disabled={isLoadingSymbols}
+                className="h-6 px-2"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoadingSymbols ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
             <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {symbols.map(symbol => (
+              <SelectContent className="max-h-[200px]">
+                {filteredSymbols.map(symbol => (
                   <SelectItem key={symbol} value={symbol}>
                     {symbol}
                   </SelectItem>

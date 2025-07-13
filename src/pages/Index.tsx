@@ -400,6 +400,10 @@ const Index = () => {
                 <SignalGenerator 
                   onSignalGenerated={handleSignalGenerated}
                   onTradeExecuted={handleTradeExecuted}
+                  minimumVolume={minimumVolume}
+                  minimumPriceChange={minimumPriceChange}
+                  maxSignals={maxSignals}
+                  minimumConfidence={minimumConfidence}
                 />
                 <div className="space-y-4">
                   <LeverageControl 
