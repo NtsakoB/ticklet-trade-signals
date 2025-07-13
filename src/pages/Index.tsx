@@ -17,6 +17,8 @@ import LeverageControl from "@/components/LeverageControl";
 import SignalGenerator from "@/components/SignalGenerator";
 import PaperTradingPanel from "@/components/PaperTradingPanel";
 import AiStrategyOptimization from "@/components/AiStrategyOptimization";
+import MarketSummary from "@/components/MarketSummary";
+import SecuritySettings from "@/components/SecuritySettings";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import StorageService from "@/services/storageService";
@@ -24,7 +26,7 @@ import PaperTradingService from "@/services/paperTradingService";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security'>('overview');
   
   // Signal filtering parameters
   const [minimumVolume, setMinimumVolume] = useState(50000);
@@ -270,6 +272,18 @@ const Index = () => {
             >
               AI Optimization
             </button>
+            <button 
+              onClick={() => setActiveTab('market')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'market' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Market Summary
+            </button>
+            <button 
+              onClick={() => setActiveTab('security')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'security' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Security
+            </button>
           </div>
           
           {/* Signal filtering controls */}
@@ -427,6 +441,14 @@ const Index = () => {
             
             {activeTab === 'optimization' && (
               <AiStrategyOptimization />
+            )}
+            
+            {activeTab === 'market' && (
+              <MarketSummary />
+            )}
+            
+            {activeTab === 'security' && (
+              <SecuritySettings />
             )}
           </div>
         </div>
