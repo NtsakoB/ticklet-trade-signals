@@ -40,6 +40,7 @@ const SignalGenerator = ({
   const [symbolSearch, setSymbolSearch] = useState("");
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [aiCommentary, setAiCommentary] = useState<string>("");
+  const [sortByVolume, setSortByVolume] = useState(true);
 
   // Fetch filtered symbols based on criteria
   const fetchFilteredSymbols = async () => {
@@ -81,7 +82,7 @@ const SignalGenerator = ({
   useEffect(() => {
     fetchFilteredSymbols();
     fetchAllSymbols();
-  }, [minimumVolume, minimumPriceChange, maxSignals]);
+  }, [minimumVolume, minimumPriceChange, maxSignals, sortByVolume]);
 
   // Fetch all available symbols for enhanced dropdown
   const fetchAllSymbols = async () => {
@@ -92,17 +93,22 @@ const SignalGenerator = ({
         maxResults: 1000
       });
       
-      const symbols = allMarketData.map(ticker => ticker.symbol);
+      // Sort by volume (descending) or alphabetically
+      const sortedData = sortByVolume 
+        ? allMarketData.sort((a, b) => (parseFloat(b.quoteVolume) || 0) - (parseFloat(a.quoteVolume) || 0))
+        : allMarketData.sort((a, b) => a.symbol.localeCompare(b.symbol));
+      
+      const symbols = sortedData.map(ticker => ticker.symbol);
       
       // Add custom/trending pairs that might not be in the API
       const customPairs = ['MUBARAKUSDT', 'CHILGUYUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT'];
       const allSymbolsList = [...symbols, ...customPairs].filter((symbol, index, self) => self.indexOf(symbol) === index);
       
-      setAllSymbols(allSymbolsList.sort());
+      setAllSymbols(allSymbolsList);
     } catch (error) {
       console.error('Error fetching all symbols:', error);
-      // Fallback symbol list
-      setAllSymbols(['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT', 'MUBARAKUSDT', 'CHILGUYUSDT']);
+      // Fallback symbol list (sorted by volume manually - top volume pairs first)
+      setAllSymbols(['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT', 'MUBARAKUSDT', 'CHILGUYUSDT']);
     }
   };
 
@@ -175,17 +181,25 @@ const SignalGenerator = ({
   // Filter symbols for dropdown
   const getFilteredSymbolsForDropdown = () => {
     const searchTerm = symbolSearch.toLowerCase();
-    const filtered = allSymbols.filter(symbol => 
+    
+    if (!searchTerm) {
+      return {
+        favorites: favoriteSymbols,
+        others: allSymbols.filter(symbol => !favoriteSymbols.includes(symbol))
+      };
+    }
+    
+    const filteredAll = allSymbols.filter(symbol => 
+      symbol.toLowerCase().includes(searchTerm)
+    );
+    
+    const filteredFavorites = favoriteSymbols.filter(symbol => 
       symbol.toLowerCase().includes(searchTerm)
     );
     
     return {
-      favorites: favoriteSymbols.filter(symbol => 
-        symbol.toLowerCase().includes(searchTerm)
-      ),
-      others: filtered.filter(symbol => 
-        !favoriteSymbols.includes(symbol)
-      )
+      favorites: filteredFavorites,
+      others: filteredAll.filter(symbol => !favoriteSymbols.includes(symbol))
     };
   };
 
@@ -356,14 +370,24 @@ const SignalGenerator = ({
             
             {/* Enhanced Symbol Dropdown with Search and Favorites */}
             <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search symbols..."
-                  value={symbolSearch}
-                  onChange={(e) => setSymbolSearch(e.target.value)}
-                  className="pl-8"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search symbols (e.g. BTC, ETH)..."
+                    value={symbolSearch}
+                    onChange={(e) => setSymbolSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSortByVolume(!sortByVolume)}
+                  className="whitespace-nowrap"
+                >
+                  {sortByVolume ? '🔀 Volume' : '🔤 A-Z'}
+                </Button>
               </div>
               
               <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
@@ -371,64 +395,81 @@ const SignalGenerator = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
-                  {/* Favorites Section */}
-                  {getFilteredSymbolsForDropdown().favorites.length > 0 && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                        ⭐ Favorites
-                      </div>
-                      {getFilteredSymbolsForDropdown().favorites.map(symbol => (
-                        <SelectItem key={`fav-${symbol}`} value={symbol}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{symbol}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 ml-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(symbol);
-                              }}
-                            >
-                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            </Button>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                  
-                  {/* All Symbols Section */}
-                  {getFilteredSymbolsForDropdown().others.length > 0 && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                        All Symbols
-                      </div>
-                      {getFilteredSymbolsForDropdown().others.slice(0, 50).map(symbol => (
-                        <SelectItem key={symbol} value={symbol}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{symbol}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 ml-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(symbol);
-                              }}
-                            >
-                              <Star className="h-3 w-3 text-muted-foreground hover:text-yellow-400" />
-                            </Button>
-                          </div>
-                        </SelectItem>
-                      ))}
-                      {getFilteredSymbolsForDropdown().others.length > 50 && (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          ... and {getFilteredSymbolsForDropdown().others.length - 50} more
+                  {(() => {
+                    const filtered = getFilteredSymbolsForDropdown();
+                    const hasResults = filtered.favorites.length > 0 || filtered.others.length > 0;
+                    
+                    if (!hasResults && symbolSearch) {
+                      return (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          No results found for '{symbolSearch}'
                         </div>
-                      )}
-                    </>
-                  )}
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        {/* Favorites Section */}
+                        {filtered.favorites.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                              ⭐ Favorites
+                            </div>
+                            {filtered.favorites.map(symbol => (
+                              <SelectItem key={`fav-${symbol}`} value={symbol}>
+                                <div className="flex items-center justify-between w-full">
+                                  <span>{symbol}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-4 w-4 p-0 ml-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(symbol);
+                                    }}
+                                  >
+                                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                  </Button>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        
+                        {/* All Symbols Section */}
+                        {filtered.others.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                              All Symbols {sortByVolume ? '(by Volume)' : '(A-Z)'}
+                            </div>
+                            {filtered.others.slice(0, 50).map(symbol => (
+                              <SelectItem key={symbol} value={symbol}>
+                                <div className="flex items-center justify-between w-full">
+                                  <span>{symbol}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-4 w-4 p-0 ml-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(symbol);
+                                    }}
+                                  >
+                                    <Star className="h-3 w-3 text-muted-foreground hover:text-yellow-400" />
+                                  </Button>
+                                </div>
+                              </SelectItem>
+                            ))}
+                            {filtered.others.length > 50 && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                ... and {filtered.others.length - 50} more
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </SelectContent>
               </Select>
             </div>
