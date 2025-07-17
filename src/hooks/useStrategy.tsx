@@ -16,6 +16,11 @@ export function StrategyProvider({ children }: StrategyProviderProps) {
   const handleStrategyChange = (strategy: StrategyType) => {
     setActiveStrategy(strategy);
     strategyManager.setActiveStrategy(strategy);
+    
+    // Trigger a custom event to notify all components of strategy change
+    window.dispatchEvent(new CustomEvent('strategyChanged', { 
+      detail: { strategy } 
+    }));
   };
 
   const getStrategyConfig = (strategy: StrategyType): Strategy => {

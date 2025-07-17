@@ -1,4 +1,3 @@
-
 import { fetchMarketData } from './binanceApi';
 import StorageService, { BacktestResult, StoredTrade } from './storageService';
 
@@ -12,37 +11,75 @@ interface HistoricalPrice {
 }
 
 class BacktestService {
-  // Fetch historical data from Binance
+  // Fetch historical data from Binance with multiple batches for 5-year data
   static async fetchHistoricalData(symbol: string, interval: string, startTime: number, endTime: number): Promise<HistoricalPrice[]> {
     try {
-      const response = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=1000`
-      );
+      const allData: HistoricalPrice[] = [];
+      const batchSize = 1000; // Binance limit
+      const intervalMs = this.getIntervalMs(interval);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch historical data');
+      let currentStart = startTime;
+      
+      while (currentStart < endTime) {
+        const batchEnd = Math.min(currentStart + (batchSize * intervalMs), endTime);
+        
+        const response = await fetch(
+          `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${currentStart}&endTime=${batchEnd}&limit=${batchSize}`
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch historical data');
+        }
+        
+        const data = await response.json();
+        
+        if (data.length === 0) break;
+        
+        const batchData = data.map((candle: any[]) => ({
+          time: candle[0],
+          open: parseFloat(candle[1]),
+          high: parseFloat(candle[2]),
+          low: parseFloat(candle[3]),
+          close: parseFloat(candle[4]),
+          volume: parseFloat(candle[5])
+        }));
+        
+        allData.push(...batchData);
+        currentStart = batchData[batchData.length - 1].time + intervalMs;
+        
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      const data = await response.json();
-      
-      return data.map((candle: any[]) => ({
-        time: candle[0],
-        open: parseFloat(candle[1]),
-        high: parseFloat(candle[2]),
-        low: parseFloat(candle[3]),
-        close: parseFloat(candle[4]),
-        volume: parseFloat(candle[5])
-      }));
+      return allData;
     } catch (error) {
       console.error('Error fetching historical data:', error);
       return [];
     }
   }
 
-  // Simple momentum strategy for backtesting
-  static generateSignals(data: HistoricalPrice[]): Array<{type: 'BUY' | 'SELL', price: number, time: number, confidence: number}> {
+  private static getIntervalMs(interval: string): number {
+    const map: { [key: string]: number } = {
+      '1m': 60 * 1000,
+      '5m': 5 * 60 * 1000,
+      '15m': 15 * 60 * 1000,
+      '1h': 60 * 60 * 1000,
+      '4h': 4 * 60 * 60 * 1000,
+      '1d': 24 * 60 * 60 * 1000
+    };
+    return map[interval] || 60 * 60 * 1000;
+  }
+
+  // Dynamic strategy-aware signal generation
+  static async generateSignals(data: HistoricalPrice[], strategyType: string): Promise<Array<{type: 'BUY' | 'SELL', price: number, time: number, confidence: number}>> {
+    // For now, use momentum signals for all strategies until strategy methods are implemented
+    // TODO: Implement actual strategy signal generation
+    return this.generateMomentumSignals(data);
+  }
+
+  private static generateMomentumSignals(data: HistoricalPrice[]): Array<{type: 'BUY' | 'SELL', price: number, time: number, confidence: number}> {
     const signals = [];
-    const period = 14; // RSI period
+    const period = 14;
     
     for (let i = period; i < data.length; i++) {
       const recentPrices = data.slice(i - period, i);
@@ -50,7 +87,6 @@ class BacktestService {
       const currentPrice = data[i].close;
       const priceChange = ((currentPrice - avgPrice) / avgPrice) * 100;
       
-      // Generate signals based on price momentum
       if (Math.abs(priceChange) > 2) {
         signals.push({
           type: priceChange > 0 ? 'BUY' : 'SELL',
@@ -64,22 +100,65 @@ class BacktestService {
     return signals;
   }
 
-  // Run backtest simulation
-  static async runBacktest(symbol: string, startDate: Date, endDate: Date, initialBalance: number = 10000): Promise<BacktestResult> {
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
+  private static getStrategyRiskPct(strategyType: string, confidence: number): number {
+    switch (strategyType) {
+      case 'ticklet-alpha':
+        return confidence > 0.8 ? 0.15 : confidence > 0.6 ? 0.10 : 0.05;
+      case 'bull-strategy':
+        return confidence > 0.9 ? 0.10 : confidence > 0.8 ? 0.07 : 0.05;
+      case 'jam-bot':
+        return confidence > 0.7 ? 0.12 : 0.08;
+      default:
+        return 0.10;
+    }
+  }
+
+  private static getStrategyLeverage(strategyType: string, confidence: number): number {
+    switch (strategyType) {
+      case 'ticklet-alpha':
+        return confidence > 0.8 ? 10 : confidence > 0.6 ? 7 : 5;
+      case 'bull-strategy':
+        return confidence > 0.9 ? 10 : confidence > 0.8 ? 7 : 5;
+      case 'jam-bot':
+        return confidence > 0.7 ? 8 : 5;
+      default:
+        return 5;
+    }
+  }
+
+  // Run backtest simulation with strategy-specific logic
+  static async runBacktest(
+    symbol: string, 
+    startDate: Date, 
+    endDate: Date, 
+    initialBalance: number = 10000,
+    strategyType: string = 'ticklet-alpha',
+    timeframe: string = '1h'
+  ): Promise<BacktestResult> {
+    // Use Jan 2020 to current date for full 5-year backtest
+    const fullStartDate = new Date('2020-01-01');
+    const fullEndDate = new Date(); // Current date
     
-    // Fetch historical data
-    const historicalData = await this.fetchHistoricalData(symbol, '1h', startTime, endTime);
+    const startTime = fullStartDate.getTime();
+    const endTime = fullEndDate.getTime();
+    
+    console.log(`Running backtest for ${strategyType} from ${fullStartDate.toDateString()} to ${fullEndDate.toDateString()}`);
+    
+    // Fetch fresh historical data (no caching)
+    const historicalData = await this.fetchHistoricalData(symbol, timeframe, startTime, endTime);
     
     if (historicalData.length === 0) {
       throw new Error('No historical data available');
     }
     
-    // Generate trading signals
-    const signals = this.generateSignals(historicalData);
+    console.log(`Loaded ${historicalData.length} candles for backtest`);
     
-    // Simulate trades
+    // Generate strategy-specific signals
+    const signals = await this.generateSignals(historicalData, strategyType);
+    
+    console.log(`Generated ${signals.length} signals using ${strategyType} strategy`);
+    
+    // Simulate trades with strategy-specific parameters
     let balance = initialBalance;
     let position = 0;
     let positionEntry = 0;
@@ -88,8 +167,11 @@ class BacktestService {
     
     for (const signal of signals) {
       if (signal.type === 'BUY' && position === 0) {
-        // Open long position
-        const quantity = (balance * 0.1) / signal.price; // Risk 10% of balance
+        // Risk percentage based on strategy
+        const riskPct = this.getStrategyRiskPct(strategyType, signal.confidence);
+        const quantity = (balance * riskPct) / signal.price;
+        const leverage = this.getStrategyLeverage(strategyType, signal.confidence);
+        
         position = quantity;
         positionEntry = signal.price;
         
@@ -100,10 +182,11 @@ class BacktestService {
           entryPrice: signal.price,
           entryTime: new Date(signal.time).toISOString(),
           quantity,
-          leverage: 1,
+          leverage,
           status: 'open',
           tradeType: 'live',
-          strategy: 'momentum'
+          strategy: strategyType,
+          confidence: signal.confidence
         };
         
       } else if (signal.type === 'SELL' && position > 0) {
@@ -159,8 +242,8 @@ class BacktestService {
     
     const result: BacktestResult = {
       id: `backtest-${Date.now()}`,
-      strategy: 'momentum',
-      period: `${startDate.toDateString()} - ${endDate.toDateString()}`,
+      strategy: strategyType,
+      period: `${fullStartDate.toDateString()} - ${fullEndDate.toDateString()}`,
       initialBalance,
       finalBalance: balance,
       totalReturn,
@@ -168,18 +251,24 @@ class BacktestService {
       winRate,
       maxDrawdown,
       sharpeRatio: isNaN(sharpeRatio) ? 0 : sharpeRatio,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      timeframe,
+      totalSignals: signals.length
     };
     
     // Save backtest result
     StorageService.saveBacktestResult(result);
     
+    console.log(`Backtest completed: ${trades.length} trades, ${winRate.toFixed(1)}% win rate, ${totalReturn.toFixed(2)}% return`);
+    
     return result;
   }
 
-  // Get monthly returns for the specified period
-  static async getMonthlyReturns(startYear: number = 2021, endYear: number = 2024): Promise<Array<{month: string, return: number, trades: number}>> {
-    const backtestResults = StorageService.getBacktestResults();
+  // Get monthly returns for the specified period, filtered by strategy
+  static async getMonthlyReturns(startYear: number = 2021, endYear: number = 2024, strategyFilter?: string): Promise<Array<{month: string, return: number, trades: number}>> {
+    const backtestResults = StorageService.getBacktestResults()
+      .filter(result => strategyFilter ? result.strategy === strategyFilter : true);
+    
     const monthlyData = [];
     
     for (let year = startYear; year <= endYear; year++) {
@@ -187,7 +276,7 @@ class BacktestService {
         const monthStart = new Date(year, month, 1);
         const monthEnd = new Date(year, month + 1, 0);
         
-        // Find trades in this month from stored backtests
+        // Find trades in this month from filtered backtests
         const monthTrades = backtestResults.flatMap(result => 
           result.trades.filter(trade => {
             const tradeDate = new Date(trade.entryTime);

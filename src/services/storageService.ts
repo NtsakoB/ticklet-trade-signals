@@ -12,7 +12,8 @@ interface StoredTrade {
   pnl?: number;
   status: 'open' | 'closed';
   tradeType: 'live' | 'paper';
-  strategy: string;
+  strategy?: string;
+  confidence?: number;
 }
 
 interface BacktestResult {
@@ -27,6 +28,8 @@ interface BacktestResult {
   maxDrawdown: number;
   sharpeRatio: number;
   createdAt: string;
+  timeframe?: string;
+  totalSignals?: number;
 }
 
 class StorageService {

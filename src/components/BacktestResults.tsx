@@ -20,9 +20,11 @@ const BacktestResults = () => {
   
   // Backtest parameters
   const [symbol, setSymbol] = useState("BTCUSDT");
-  const [startDate, setStartDate] = useState("2023-01-01");
-  const [endDate, setEndDate] = useState("2024-01-01");
+  const [startDate, setStartDate] = useState("2020-01-01"); // Fixed 5-year period
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]); // Current date
   const [initialBalance, setInitialBalance] = useState(10000);
+  const [strategyType, setStrategyType] = useState("ticklet-alpha");
+  const [timeframe, setTimeframe] = useState("1h");
 
   useEffect(() => {
     loadBacktestResults();
@@ -53,10 +55,12 @@ const BacktestResults = () => {
         symbol,
         new Date(startDate),
         new Date(endDate),
-        initialBalance
+        initialBalance,
+        strategyType,
+        timeframe
       );
       
-      toast.success("Backtest completed successfully!");
+      toast.success(`${strategyType} backtest completed! ${result.trades.length} trades, ${result.winRate.toFixed(1)}% win rate`);
       loadBacktestResults();
       setSelectedResult(result);
       loadMonthlyReturns(); // Refresh monthly returns
@@ -96,7 +100,34 @@ const BacktestResults = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+            <div>
+              <Label htmlFor="strategy">Strategy</Label>
+              <Select value={strategyType} onValueChange={setStrategyType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ticklet-alpha">Ticklet ALPHA</SelectItem>
+                  <SelectItem value="bull-strategy">Bull Strategy</SelectItem>
+                  <SelectItem value="jam-bot">Jam Bot</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="timeframe">Timeframe</Label>
+              <Select value={timeframe} onValueChange={setTimeframe}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15m">15 minutes</SelectItem>
+                  <SelectItem value="1h">1 hour</SelectItem>
+                  <SelectItem value="4h">4 hours</SelectItem>
+                  <SelectItem value="1d">1 day</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label htmlFor="symbol">Symbol</Label>
               <Select value={symbol} onValueChange={setSymbol}>
@@ -113,19 +144,21 @@ const BacktestResults = () => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">Start (Fixed)</Label>
               <Input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                readOnly
+                className="bg-gray-700 cursor-not-allowed"
               />
             </div>
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">End (Current)</Label>
               <Input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                readOnly
+                className="bg-gray-700 cursor-not-allowed"
               />
             </div>
             <div>

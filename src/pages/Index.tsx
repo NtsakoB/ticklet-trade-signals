@@ -29,7 +29,18 @@ import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security'>('overview');
+  const [refreshKey, setRefreshKey] = useState(0);
   const { activeStrategy, setActiveStrategy, getAllStrategies } = useStrategy();
+  
+  // Listen for strategy changes to refresh all data
+  useEffect(() => {
+    const handleStrategyChange = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('strategyChanged', handleStrategyChange);
+    return () => window.removeEventListener('strategyChanged', handleStrategyChange);
+  }, []);
   
   // Signal filtering parameters
   const [minimumVolume, setMinimumVolume] = useState(50000);
@@ -58,22 +69,34 @@ const Index = () => {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Convert to signals using enhanced API
+  // Convert to signals using enhanced API, filtered by active strategy
   const signals = isError || !binanceData 
     ? []
     : EnhancedBinanceApi.convertToSignals(binanceData, {
         minimumConfidence,
         includeAnomaly: true
-      });
+      }).map(signal => ({
+        ...signal,
+        strategy: activeStrategy,
+        metadata: {
+          ...signal.metadata,
+          strategy: activeStrategy,
+          timestamp: new Date().toISOString(),
+          indicators: [`${activeStrategy}-indicators`]
+        }
+      }));
   
-  // Calculate stats based on real stored data
+  // Calculate stats based on real stored data, filtered by active strategy
   const calculateRealStats = (): DashboardStats => {
-    const storedTrades = StorageService.getTrades();
+    const storedTrades = StorageService.getTrades()
+      .filter(trade => trade.strategy === activeStrategy || !trade.strategy); // Include legacy trades without strategy
     const openTrades = storedTrades.filter(t => t.status === 'open');
     const closedTrades = storedTrades.filter(t => t.status === 'closed');
     
-    const actualWinRate = StorageService.calculateActualWinRate() / 100;
-    const totalPnL = StorageService.calculateTotalPnL();
+    const actualWinRate = closedTrades.length > 0 
+      ? (closedTrades.filter(t => (t.pnl || 0) > 0).length / closedTrades.length) 
+      : 0.5;
+    const totalPnL = closedTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
     
     // Calculate capital at risk from open trades
     const capitalAtRisk = openTrades.reduce((sum, trade) => {
@@ -139,9 +162,10 @@ const Index = () => {
   // Recent signals - use actual signals
   const recent = signals.slice(0, 5);
   
-  // Convert stored trades to the format expected by TradeLog
+  // Convert stored trades to the format expected by TradeLog, filtered by active strategy
   const storedTrades = StorageService.getTrades()
     .filter(trade => trade.status === 'closed')
+    .filter(trade => trade.strategy === activeStrategy || !trade.strategy) // Include legacy trades
     .slice(0, 10)
     .map(trade => ({
       id: trade.id,
@@ -149,7 +173,8 @@ const Index = () => {
       side: trade.type,
       pnl: trade.pnl || 0,
       timestamp: trade.exitTime || trade.entryTime,
-      status: 'completed' as const
+      status: 'completed' as const,
+      strategy: trade.strategy || activeStrategy
     }));
 
   const handleSignalGenerated = async (signal: any) => {

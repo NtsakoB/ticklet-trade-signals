@@ -106,11 +106,23 @@ export function StrategySelector({
   }
 
   if (variant === 'compact') {
+    const selectedStrategyConfig = strategies.find(s => s.id === selectedStrategy);
+    
     return (
-      <div className={`flex items-center gap-2 ${className}`}>
-        <span className="text-sm text-muted-foreground">Strategy:</span>
+      <div className={`flex items-center gap-3 ${className}`}>
+        {selectedStrategy !== activeStrategy && (
+          <Button 
+            onClick={handleUseStrategy} 
+            disabled={isLoading}
+            size="sm"
+            className="px-4"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Use'}
+          </Button>
+        )}
+        
         <Select value={selectedStrategy} onValueChange={(value: string) => setSelectedStrategy(value as StrategyType)}>
-          <SelectTrigger className="w-auto min-w-[180px]">
+          <SelectTrigger className="w-auto min-w-[220px]">
             <SelectValue placeholder="Select strategy" />
           </SelectTrigger>
           <SelectContent className="bg-background border-border">
@@ -127,20 +139,14 @@ export function StrategySelector({
             })}
           </SelectContent>
         </Select>
-        {activeStrategyConfig && (
-          <Badge className={riskColors[activeStrategyConfig.riskLevel]}>
-            {activeStrategyConfig.riskLevel} risk
+        
+        {selectedStrategyConfig && (
+          <Badge className={`${riskColors[selectedStrategyConfig.riskLevel]} text-xs font-medium`}>
+            {selectedStrategyConfig.riskLevel === 'low' && '🟢'} 
+            {selectedStrategyConfig.riskLevel === 'medium' && '🟡'} 
+            {selectedStrategyConfig.riskLevel === 'high' && '🔴'} 
+            {selectedStrategyConfig.riskLevel} risk
           </Badge>
-        )}
-        {selectedStrategy !== activeStrategy && (
-          <Button 
-            onClick={handleUseStrategy} 
-            disabled={isLoading}
-            size="sm"
-            className="px-4"
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Use'}
-          </Button>
         )}
       </div>
     );
