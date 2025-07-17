@@ -12,6 +12,8 @@ export interface TradeSignal {
   status: 'active' | 'executed' | 'cancelled' | 'completed';
   exchange: 'Bybit' | 'Binance' | 'Other';
   source?: 'strategy' | 'telegram' | 'manual';
+  strategy?: string;
+  strategyName?: string;
   pnl?: number;
   exitPrice?: number;
   exitTime?: string;
@@ -20,6 +22,13 @@ export interface TradeSignal {
   duration?: string;
   exposure?: number;
   exposurePercentage?: number;
+  metadata?: {
+    strategy?: string;
+    strategyVersion?: string;
+    generatedBy?: string;
+    indicators?: string[];
+    [key: string]: any;
+  };
 }
 
 export interface SignalFilter {

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown, RefreshCw, Star, Search, ChevronDown } from "lucide-react";
 import { fetchMarketData } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
+import { useStrategySignals } from "@/hooks/useStrategy";
 
 interface SignalGeneratorProps {
   onSignalGenerated: (signal: any) => void;
@@ -27,6 +28,7 @@ const SignalGenerator = ({
   maxSignals = 50,
   minimumConfidence = 0.3
 }: SignalGeneratorProps) => {
+  const { activeStrategy, generateStrategySignal, enhanceSignalWithStrategy } = useStrategySignals();
   const [isGenerating, setIsGenerating] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
@@ -122,6 +124,56 @@ const SignalGenerator = ({
     
     setFavoriteSymbols(newFavorites);
     localStorage.setItem('signal-generator-favorites', JSON.stringify(newFavorites));
+  };
+
+  const generateAICommentaryWithStrategy = (signal: any, marketData: any, strategyResult: any) => {
+    const { type, confidence, leverage, marketData: signalMarketData, strategyName } = signal;
+    const priceChange = signalMarketData.priceChange;
+    const volatility = signalMarketData.volatility;
+    const volume = signalMarketData.volume;
+    
+    let commentary = `🤖 **${strategyName.toUpperCase()} ANALYSIS**\n\n`;
+    commentary += `**Strategy Reasoning:** ${strategyResult.reasoning}\n\n`;
+    
+    // Market context based on strategy
+    if (type === 'BUY') {
+      commentary += "📈 **BULLISH SETUP DETECTED**\n\n";
+      commentary += `Market momentum is shifting upward with ${priceChange > 0 ? 'positive' : 'recovering'} price action. `;
+    } else {
+      commentary += "📉 **BEARISH SETUP IDENTIFIED**\n\n";
+      commentary += `Bearish pressure is mounting with ${Math.abs(priceChange).toFixed(2)}% decline showing selling pressure. `;
+    }
+    
+    // Technical analysis
+    commentary += `Current volatility at ${volatility.toFixed(2)}% indicates ${volatility > 3 ? 'high' : volatility > 1.5 ? 'moderate' : 'low'} market activity. `;
+    
+    // Volume analysis
+    if (volume > 5000000) {
+      commentary += "Strong volume confirmation suggests institutional interest. ";
+    } else if (volume > 1000000) {
+      commentary += "Decent volume backing supports the move. ";
+    }
+    
+    // Confidence reasoning with strategy context
+    commentary += `\n\n**Signal Confidence: ${(confidence * 100).toFixed(1)}%**\n`;
+    commentary += `Generated using ${strategyName} with indicators: ${strategyResult.metadata.indicators.join(', ')}\n`;
+    
+    if (confidence > 0.8) {
+      commentary += "High confidence setup with multiple confirmations aligning. ";
+    } else if (confidence > 0.6) {
+      commentary += "Moderate confidence with decent technical alignment. ";
+    } else {
+      commentary += "Lower confidence - consider reducing position size. ";
+    }
+    
+    // Risk assessment
+    commentary += `\n\n**Risk Assessment:**\n`;
+    commentary += `• Strategy: ${strategyName}\n`;
+    commentary += `• Recommended leverage: ${leverage}x (auto-calculated based on volatility)\n`;
+    commentary += `• Stop-loss positioned at ${type === 'BUY' ? '3%' : '3%'} from entry\n`;
+    commentary += `• Three-tier profit taking strategy implemented\n`;
+    
+    return commentary;
   };
 
   const generateAICommentary = (signal: any, marketData: any) => {
@@ -344,65 +396,24 @@ const SignalGenerator = ({
 
       setMarketData(data);
       
-      // Generate signal based on real market conditions
-      const price = parseFloat(data.lastPrice);
-      const priceChange = parseFloat(data.priceChangePercent);
-      const volume = parseFloat(data.volume) * price;
+      // Use strategy-specific signal generation
+      const strategyResult = await generateStrategySignal(selectedSymbol, data);
       
-      // Simple signal generation logic based on price movement and volume
-      const isUptrend = priceChange > 0;
-      const isHighVolume = volume > 1000000; // $1M+ volume
-      const volatility = Math.abs(priceChange);
-      
-      // Calculate confidence based on multiple factors
-      let signalConfidence = confidence;
-      if (isHighVolume) signalConfidence += 0.1;
-      if (volatility > 2) signalConfidence += 0.1;
-      if (volatility > 5) signalConfidence += 0.1;
-      signalConfidence = Math.min(signalConfidence, 0.95);
-      
-      // Determine signal type based on technical indicators
-      const signalType = isUptrend && volatility > 1 ? 'BUY' : 'SELL';
-      
-      // Calculate targets and stop loss based on current price
-      const targets = signalType === 'BUY' 
-        ? [price * 1.02, price * 1.05, price * 1.08]  // T1 to T3: ascending for BUY
-        : [price * 0.98, price * 0.95, price * 0.92];  // T1 to T3: descending for SELL
-      
-      const stopLoss = signalType === 'BUY' ? price * 0.97 : price * 1.03;
-      
-      // Calculate leverage based on confidence and volatility
-      const leverage = Math.max(1, Math.min(20, Math.floor((signalConfidence * 15) / (volatility / 2 + 1))));
-      
-      const signal = {
-        id: `signal-${Date.now()}`,
-        symbol: selectedSymbol,
-        type: signalType,
-        entryPrice: price,
-        targets,
-        stopLoss,
-        confidence: signalConfidence,
-        timestamp: new Date().toISOString(),
-        source: 'strategy',
-        leverage,
-        status: 'active',
-        marketData: {
-          priceChange: priceChange,
-          volume: volume,
-          high24h: parseFloat(data.highPrice),
-          low24h: parseFloat(data.lowPrice),
-          volatility: volatility
-        }
-      };
+      if (!strategyResult) {
+        toast.error("Failed to generate strategy signal");
+        setIsGenerating(false);
+        return;
+      }
 
+      const signal = enhanceSignalWithStrategy(strategyResult.signal);
       setLastSignal(signal);
       onSignalGenerated(signal);
       
-      // Generate AI commentary
-      const commentary = generateAICommentary(signal, data);
+      // Generate AI commentary using strategy context
+      const commentary = generateAICommentaryWithStrategy(signal, data, strategyResult);
       setAiCommentary(commentary);
       
-      toast.success(`Real signal generated for ${signal.symbol}`, {
+      toast.success(`${signal.strategyName} signal generated for ${signal.symbol}`, {
         description: `${signal.type} at $${signal.entryPrice.toFixed(2)} (${(signal.confidence * 100).toFixed(1)}% confidence)`
       });
       
@@ -442,9 +453,14 @@ const SignalGenerator = ({
             <Zap className="h-5 w-5" />
             Live Signal Generator
           </CardTitle>
-          <Badge variant={autoMode ? "default" : "outline"}>
-            {autoMode ? "Auto" : "Manual"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {activeStrategy === 'ticklet-alpha' ? 'Ticklet ALPHA' : 'Bull Strategy'}
+            </Badge>
+            <Badge variant={autoMode ? "default" : "outline"}>
+              {autoMode ? "Auto" : "Manual"}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

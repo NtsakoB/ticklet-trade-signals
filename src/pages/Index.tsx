@@ -19,6 +19,8 @@ import PaperTradingPanel from "@/components/PaperTradingPanel";
 import AiStrategyOptimization from "@/components/AiStrategyOptimization";
 import MarketSummary from "@/components/MarketSummary";
 import SecuritySettings from "@/components/SecuritySettings";
+import { StrategySelector } from "@/components/ui/strategy-selector";
+import { useStrategy } from "@/hooks/useStrategy";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import StorageService from "@/services/storageService";
@@ -27,6 +29,7 @@ import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security'>('overview');
+  const { activeStrategy, setActiveStrategy, getAllStrategies } = useStrategy();
   
   // Signal filtering parameters
   const [minimumVolume, setMinimumVolume] = useState(50000);
@@ -213,6 +216,15 @@ const Index = () => {
             performanceHistory={stats.performanceHistory}
           />
           
+          {/* Strategy Selector */}
+          <StrategySelector 
+            activeStrategy={activeStrategy}
+            strategies={getAllStrategies()}
+            onStrategyChange={setActiveStrategy}
+            variant="compact"
+            className="mb-4"
+          />
+
           {/* Stats Cards */}
           <StatsCards stats={stats} />
           
@@ -397,14 +409,22 @@ const Index = () => {
             
             {activeTab === 'controls' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <SignalGenerator 
-                  onSignalGenerated={handleSignalGenerated}
-                  onTradeExecuted={handleTradeExecuted}
-                  minimumVolume={minimumVolume}
-                  minimumPriceChange={minimumPriceChange}
-                  maxSignals={maxSignals}
-                  minimumConfidence={minimumConfidence}
-                />
+                <div className="space-y-4">
+                  <StrategySelector 
+                    activeStrategy={activeStrategy}
+                    strategies={getAllStrategies()}
+                    onStrategyChange={setActiveStrategy}
+                    variant="full"
+                  />
+                  <SignalGenerator 
+                    onSignalGenerated={handleSignalGenerated}
+                    onTradeExecuted={handleTradeExecuted}
+                    minimumVolume={minimumVolume}
+                    minimumPriceChange={minimumPriceChange}
+                    maxSignals={maxSignals}
+                    minimumConfidence={minimumConfidence}
+                  />
+                </div>
                 <div className="space-y-4">
                   <LeverageControl 
                     currentLeverage={currentLeverage}

@@ -73,11 +73,12 @@ const TradeLog = ({ trades }: TradeLogProps) => {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-gray-800">
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead>PnL</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
+            <TableHead>Symbol</TableHead>
+            <TableHead>Side</TableHead>
+            <TableHead>Strategy</TableHead>
+            <TableHead>PnL</TableHead>
+            <TableHead>Time</TableHead>
+            <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
