@@ -35,7 +35,7 @@ const SignalGenerator = ({
   const [marketData, setMarketData] = useState<any>(null);
   const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
   const [isLoadingSymbols, setIsLoadingSymbols] = useState(false);
-  const [favoriteSymbols, setFavoriteSymbols] = useState<string[]>(['CHILGUYUSDT', 'MUBARAKUSDT', 'ETHUSDT', 'BTCUSDT', 'TRXUSDT', 'CVXUSDT', 'AUCTIONUSDT']);
+  const [favoriteSymbols, setFavoriteSymbols] = useState<string[]>(['CHILLGUYUSDT', 'MUBARAKUSDT', 'ETHUSDT', 'BTCUSDT', 'TRXUSDT', 'CVXUSDT', 'AUCTIONUSDT']);
   const [symbolSearch, setSymbolSearch] = useState("");
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [aiCommentary, setAiCommentary] = useState<string>("");
@@ -104,14 +104,14 @@ const SignalGenerator = ({
       const symbols = sortedData.map(ticker => ticker.symbol);
       
       // Add custom/trending pairs that might not be in the API
-      const customPairs = ['MUBARAKUSDT', 'CHILGUYUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT'];
+      const customPairs = ['MUBARAKUSDT', 'CHILLGUYUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT'];
       const allSymbolsList = [...symbols, ...customPairs].filter((symbol, index, self) => self.indexOf(symbol) === index);
       
       setAllSymbols(allSymbolsList);
     } catch (error) {
       console.error('Error fetching all symbols:', error);
       // Fallback symbol list (sorted by volume manually - top volume pairs first)
-      setAllSymbols(['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT', 'MUBARAKUSDT', 'CHILGUYUSDT']);
+      setAllSymbols(['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'PEPEUSDT', 'SHIBUSDT', 'MUBARAKUSDT', 'CHILLGUYUSDT']);
     }
   };
 
