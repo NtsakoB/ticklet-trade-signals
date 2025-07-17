@@ -94,7 +94,7 @@ class StrategyManager {
       strategy: this.activeStrategy,
       strategyName: strategy.displayName,
       metadata: {
-        ...signal.metadata,
+        ...(signal.metadata || {}),
         strategy: this.activeStrategy,
         strategyVersion: strategy.version,
         generatedBy: strategy.displayName
