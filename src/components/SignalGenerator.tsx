@@ -367,7 +367,7 @@ const SignalGenerator = ({
       // Calculate targets and stop loss based on current price
       const targets = signalType === 'BUY' 
         ? [price * 1.02, price * 1.05, price * 1.08]  // T1 to T3: ascending for BUY
-        : [price * 0.98, price * 0.95, price * 0.92].reverse();  // T1 to T3: descending for SELL
+        : [price * 0.98, price * 0.95, price * 0.92];  // T1 to T3: descending for SELL
       
       const stopLoss = signalType === 'BUY' ? price * 0.97 : price * 1.03;
       

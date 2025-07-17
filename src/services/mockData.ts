@@ -14,10 +14,17 @@ export const generateMockSignals = (count: number): TradeSignal[] => {
     const type = types[Math.floor(Math.random() * types.length)];
     const symbol = symbols[Math.floor(Math.random() * symbols.length)];
     const entryPrice = parseFloat((Math.random() * 1000 + 10).toFixed(2));
-    const targets = [
-      parseFloat((entryPrice * (type === 'BUY' ? 1.02 : 0.98)).toFixed(2)),
-      parseFloat((entryPrice * (type === 'BUY' ? 1.05 : 0.95)).toFixed(2)),
-    ];
+    const targets = type === 'BUY' 
+      ? [
+          parseFloat((entryPrice * 1.02).toFixed(2)),  // T1: lowest
+          parseFloat((entryPrice * 1.05).toFixed(2)),  // T2: mid  
+          parseFloat((entryPrice * 1.08).toFixed(2))   // T3: highest
+        ]
+      : [
+          parseFloat((entryPrice * 0.98).toFixed(2)),  // T1: highest (for short)
+          parseFloat((entryPrice * 0.95).toFixed(2)),  // T2: mid
+          parseFloat((entryPrice * 0.92).toFixed(2))   // T3: lowest (for short)
+        ];
     const stopLoss = parseFloat((entryPrice * (type === 'BUY' ? 0.97 : 1.03)).toFixed(2));
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     
