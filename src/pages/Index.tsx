@@ -20,6 +20,7 @@ import AiStrategyOptimization from "@/components/AiStrategyOptimization";
 import MarketSummary from "@/components/MarketSummary";
 import SecuritySettings from "@/components/SecuritySettings";
 import { StrategySelector } from "@/components/ui/strategy-selector";
+import { SymbolSelector } from "@/components/SymbolSelector";
 import { useStrategy } from "@/hooks/useStrategy";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
@@ -28,7 +29,7 @@ import PaperTradingService from "@/services/paperTradingService";
 import { DashboardStats, TradeSignal } from "@/types";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security' | 'chart'>('overview');
   const [refreshKey, setRefreshKey] = useState(0);
   const { activeStrategy, setActiveStrategy, getAllStrategies } = useStrategy();
   
@@ -262,6 +263,12 @@ const Index = () => {
               Overview
             </button>
             <button 
+              onClick={() => setActiveTab('chart')}
+              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'chart' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
+            >
+              Chart
+            </button>
+            <button 
               onClick={() => setActiveTab('trades')}
               className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'trades' ? 'bg-primary text-white' : 'bg-gray-800 text-muted-foreground hover:bg-gray-700'}`}
             >
@@ -387,14 +394,25 @@ const Index = () => {
                     <RecentSignals signals={recent} />
                   </div>
                 </div>
-                <TradingViewChart symbol={selectedSymbol} />
+              </div>
+            )}
+            
+            {activeTab === 'chart' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">Trading Chart</h2>
+                  <SymbolSelector
+                    value={selectedSymbol}
+                    onValueChange={setSelectedSymbol}
+                  />
+                </div>
+                <TradingViewChart symbol={selectedSymbol} height={600} />
               </div>
             )}
             
             {activeTab === 'trades' && (
               <div className="space-y-6">
                 <OpenTrades trades={signals} />
-                <TradingViewChart symbol={selectedSymbol} />
               </div>
             )}
             
