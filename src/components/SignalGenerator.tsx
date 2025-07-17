@@ -10,6 +10,7 @@ import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown, RefreshCw, Star, 
 import { fetchMarketData } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import { useStrategySignals } from "@/hooks/useStrategy";
+import TelegramService from "@/services/telegramService";
 
 interface SignalGeneratorProps {
   onSignalGenerated: (signal: any) => void;
@@ -46,6 +47,7 @@ const SignalGenerator = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [sortByVolume, setSortByVolume] = useState(true);
+  const telegramService = TelegramService.getInstance();
 
   // Fetch filtered symbols based on criteria
   const fetchFilteredSymbols = async () => {
@@ -412,6 +414,36 @@ const SignalGenerator = ({
       // Generate AI commentary using strategy context
       const commentary = generateAICommentaryWithStrategy(signal, data, strategyResult);
       setAiCommentary(commentary);
+      
+      // Send signal to Telegram if enabled
+      if (telegramService.isEnabled()) {
+        try {
+          const telegramSignal = {
+            type: signal.type,
+            symbol: signal.symbol,
+            strategyName: signal.strategyName,
+            entryPrice: signal.entryPrice,
+            entryRange: { min: signal.entryPrice * 0.995, max: signal.entryPrice * 1.005 },
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.targets?.[0] || signal.entryPrice * 1.05,
+            targets: signal.targets || [signal.entryPrice * 1.03, signal.entryPrice * 1.05, signal.entryPrice * 1.08],
+            confidence: signal.confidence,
+            leverage: signal.leverage || 1,
+            timestamp: new Date().toISOString()
+          };
+          
+          const telegramResult = await telegramService.sendSignal(telegramSignal);
+          if (telegramResult.success) {
+            toast.success(`Signal sent to Telegram`, {
+              description: `${signal.strategyName} ${signal.type} signal for ${signal.symbol}`
+            });
+          } else if (telegramResult.error !== 'Duplicate signal prevented') {
+            toast.error(`Failed to send to Telegram: ${telegramResult.error}`);
+          }
+        } catch (error) {
+          console.error('Error sending to Telegram:', error);
+        }
+      }
       
       toast.success(`${signal.strategyName} signal generated for ${signal.symbol}`, {
         description: `${signal.type} at $${signal.entryPrice.toFixed(2)} (${(signal.confidence * 100).toFixed(1)}% confidence)`

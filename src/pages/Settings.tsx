@@ -10,10 +10,18 @@ import { Settings as SettingsType } from "@/types";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import { useNavigate } from "react-router-dom";
+import TelegramService from "@/services/telegramService";
 
 const Settings = () => {
   const [settings, setSettings] = useState<SettingsType>(defaultSettings);
+  const [telegramConfig, setTelegramConfig] = useState({
+    botToken: '',
+    chatId: '',
+    enabled: false
+  });
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
   const navigate = useNavigate();
+  const telegramService = TelegramService.getInstance();
 
   // Load saved settings from localStorage
   useEffect(() => {
@@ -26,11 +34,21 @@ const Settings = () => {
         console.error("Failed to parse saved settings", e);
       }
     }
+    
+    // Load Telegram config
+    const config = telegramService.getConfig();
+    if (config) {
+      setTelegramConfig(config);
+    }
   }, []);
   
   const handleSave = () => {
     // Save settings to localStorage
     localStorage.setItem('tradingSettings', JSON.stringify(settings));
+    
+    // Save Telegram config
+    telegramService.setConfig(telegramConfig);
+    
     toast.success("Settings saved successfully");
     navigate("/");
   };
@@ -49,6 +67,27 @@ const Settings = () => {
     setTimeout(() => {
       toast.success("Connected to Binance successfully!");
     }, 1500);
+  };
+
+  // Test Telegram connection
+  const testTelegramConnection = async () => {
+    if (!telegramConfig.botToken || !telegramConfig.chatId) {
+      toast.error("Bot Token and Chat ID are required");
+      return;
+    }
+
+    setIsTestingTelegram(true);
+    toast.info("Testing Telegram connection...");
+
+    const result = await telegramService.validateConnection();
+    
+    if (result.success) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+    
+    setIsTestingTelegram(false);
   };
   
   return (
@@ -107,27 +146,22 @@ const Settings = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Switch 
-                  checked={settings.telegramEnabled}
-                  onCheckedChange={(checked) => setSettings({...settings, telegramEnabled: checked})}
+                  checked={telegramConfig.enabled}
+                  onCheckedChange={(checked) => setTelegramConfig({...telegramConfig, enabled: checked})}
                 />
                 <Label>Enable Telegram notifications</Label>
               </div>
               
-              {settings.telegramEnabled && (
+              {telegramConfig.enabled && (
                 <div className="grid grid-cols-1 gap-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="telegramApiId">Telegram API ID</Label>
+                    <Label htmlFor="telegramBotToken">Telegram Bot Token</Label>
                     <Input
-                      id="telegramApiId"
-                      placeholder="Enter your Telegram API ID"
-                      className="bg-secondary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telegramApiHash">Telegram API Hash</Label>
-                    <Input
-                      id="telegramApiHash"
-                      placeholder="Enter your Telegram API Hash"
+                      id="telegramBotToken"
+                      type="password"
+                      placeholder="Enter your Telegram Bot Token"
+                      value={telegramConfig.botToken}
+                      onChange={(e) => setTelegramConfig({...telegramConfig, botToken: e.target.value})}
                       className="bg-secondary"
                     />
                   </div>
@@ -136,8 +170,22 @@ const Settings = () => {
                     <Input
                       id="telegramChatId"
                       placeholder="Enter your Telegram Chat ID"
+                      value={telegramConfig.chatId}
+                      onChange={(e) => setTelegramConfig({...telegramConfig, chatId: e.target.value})}
                       className="bg-secondary"
                     />
+                  </div>
+                  <Button 
+                    variant="secondary" 
+                    onClick={testTelegramConnection}
+                    disabled={isTestingTelegram || !telegramConfig.botToken || !telegramConfig.chatId}
+                  >
+                    {isTestingTelegram ? "Testing..." : "Test Telegram"}
+                  </Button>
+                  <div className="text-sm text-muted-foreground">
+                    <p>1. Create a bot with @BotFather on Telegram</p>
+                    <p>2. Get your Chat ID by messaging @userinfobot</p>
+                    <p>3. Add your bot to the chat and give it admin permissions</p>
                   </div>
                 </div>
               )}

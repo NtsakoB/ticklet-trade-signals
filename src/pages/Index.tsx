@@ -23,6 +23,8 @@ import { StrategySelector } from "@/components/ui/strategy-selector";
 import { SymbolSelector } from "@/components/SymbolSelector";
 import { MarketInsights } from "@/components/MarketInsights";
 import { useStrategy } from "@/hooks/useStrategy";
+import { useTelegramSignals } from "@/hooks/useTelegramSignals";
+import TelegramService from "@/services/telegramService";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import StorageService from "@/services/storageService";
@@ -33,6 +35,17 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'logs' | 'projections' | 'ai' | 'backtest' | 'controls' | 'paper' | 'optimization' | 'market' | 'security' | 'chart'>('overview');
   const [refreshKey, setRefreshKey] = useState(0);
   const { activeStrategy, setActiveStrategy, getAllStrategies } = useStrategy();
+  const telegramService = TelegramService.getInstance();
+  
+  // Auto Telegram signals for background scanning
+  const { isScanning } = useTelegramSignals({
+    enabled: telegramService.isEnabled(),
+    interval: 300000, // 5 minutes
+    symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'],
+    onSignalSent: (signal) => {
+      console.log('Background signal sent:', signal);
+    }
+  });
   
   // Listen for strategy changes to refresh all data
   useEffect(() => {
