@@ -1,13 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown, RefreshCw, Star, Search } from "lucide-react";
+import { Zap, Play, Pause, Settings, TrendingUp, TrendingDown, RefreshCw, Star, Search, ChevronDown } from "lucide-react";
 import { fetchMarketData } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 
@@ -40,6 +39,10 @@ const SignalGenerator = ({
   const [symbolSearch, setSymbolSearch] = useState("");
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [aiCommentary, setAiCommentary] = useState<string>("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [sortByVolume, setSortByVolume] = useState(true);
 
   // Fetch filtered symbols based on criteria
@@ -238,6 +241,94 @@ const SignalGenerator = ({
     };
   };
 
+  // Get all suggestions for autocomplete
+  const getAutocompleteSuggestions = () => {
+    const filtered = getFilteredSymbolsForDropdown();
+    return [...filtered.favorites, ...filtered.others];
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const suggestions = getAutocompleteSuggestions();
+    
+    if (!showDropdown) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setShowDropdown(true);
+        setSelectedIndex(0);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+          selectSymbol(suggestions[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowDropdown(false);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
+        break;
+    }
+  }, [showDropdown, selectedIndex]);
+
+  // Select a symbol
+  const selectSymbol = (symbol: string) => {
+    setSelectedSymbol(symbol);
+    setSymbolSearch(symbol);
+    setShowDropdown(false);
+    setSelectedIndex(-1);
+    inputRef.current?.blur();
+  };
+
+  // Handle input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSymbolSearch(value);
+    setShowDropdown(true);
+    setSelectedIndex(-1);
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    setShowDropdown(true);
+  };
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Set search to selected symbol when it changes
+  useEffect(() => {
+    if (!symbolSearch || symbolSearch === selectedSymbol) {
+      setSymbolSearch(selectedSymbol);
+    }
+  }, [selectedSymbol]);
+
   const generateRealSignal = async () => {
     setIsGenerating(true);
     
@@ -403,18 +494,9 @@ const SignalGenerator = ({
               </Button>
             </div>
             
-            {/* Enhanced Symbol Dropdown with Search and Favorites */}
-            <div className="space-y-2">
+            {/* Custom Autocomplete with Search and Favorites */}
+            <div className="space-y-2" ref={dropdownRef}>
               <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search symbols (e.g. BTC, ETH)..."
-                    value={symbolSearch}
-                    onChange={(e) => setSymbolSearch(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
                 <Button
                   size="sm"
                   variant="outline"
@@ -425,92 +507,129 @@ const SignalGenerator = ({
                 </Button>
               </div>
               
-              <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {(() => {
-                    const filtered = getFilteredSymbolsForDropdown();
-                    const hasResults = filtered.favorites.length > 0 || filtered.others.length > 0;
-                    
-                    if (!hasResults && symbolSearch) {
+              {/* Autocomplete Input */}
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    ref={inputRef}
+                    placeholder="Search symbols (e.g. BTC, ETH)..."
+                    value={symbolSearch}
+                    onChange={handleSearchChange}
+                    onFocus={handleInputFocus}
+                    onKeyDown={handleKeyDown}
+                    className="pl-8 pr-8"
+                  />
+                  <ChevronDown className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+                
+                {/* Autocomplete Dropdown */}
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-[300px] overflow-auto bg-popover border border-border rounded-md shadow-lg">
+                    {(() => {
+                      const suggestions = getAutocompleteSuggestions();
+                      const filtered = getFilteredSymbolsForDropdown();
+                      const hasResults = suggestions.length > 0;
+                      
+                      if (!hasResults && symbolSearch) {
+                        return (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            No results found for '{symbolSearch}'
+                          </div>
+                        );
+                      }
+                      
+                      let currentIndex = 0;
+                      
                       return (
-                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                          No results found for '{symbolSearch}'
+                        <div className="py-1">
+                          {/* Favorites Section */}
+                          {filtered.favorites.length > 0 && (
+                            <div>
+                              <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/50">
+                                ⭐ Favorites
+                              </div>
+                              {filtered.favorites.map((symbol) => {
+                                const index = currentIndex++;
+                                return (
+                                  <div
+                                    key={`fav-${symbol}`}
+                                    className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent transition-colors ${
+                                      selectedIndex === index ? 'bg-accent' : ''
+                                    }`}
+                                    onClick={() => selectSymbol(symbol)}
+                                  >
+                                    <span className="text-sm font-medium">{symbol}</span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-5 w-5 p-0 hover:bg-transparent"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleFavorite(symbol);
+                                      }}
+                                    >
+                                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* All Symbols Section */}
+                          {filtered.others.length > 0 && (
+                            <div>
+                              <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/50">
+                                All Symbols {sortByVolume ? '(by Volume)' : '(A-Z)'}
+                              </div>
+                              {filtered.others.slice(0, 50).map((symbol) => {
+                                const index = currentIndex++;
+                                return (
+                                  <div
+                                    key={symbol}
+                                    className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent transition-colors ${
+                                      selectedIndex === index ? 'bg-accent' : ''
+                                    }`}
+                                    onClick={() => selectSymbol(symbol)}
+                                  >
+                                    <span className="text-sm">{symbol}</span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-5 w-5 p-0 hover:bg-transparent"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleFavorite(symbol);
+                                      }}
+                                    >
+                                      <Star className={`h-3 w-3 transition-colors ${
+                                        favoriteSymbols.includes(symbol) 
+                                          ? 'fill-yellow-400 text-yellow-400' 
+                                          : 'text-muted-foreground hover:text-yellow-400'
+                                      }`} />
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                              {filtered.others.length > 50 && (
+                                <div className="px-3 py-2 text-xs text-muted-foreground bg-muted/30">
+                                  ... and {filtered.others.length - 50} more symbols
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
-                    }
-                    
-                    return (
-                      <>
-                        {/* Favorites Section */}
-                        {filtered.favorites.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                              ⭐ Favorites
-                            </div>
-                            {filtered.favorites.map(symbol => (
-                              <SelectItem key={`fav-${symbol}`} value={symbol}>
-                                <div className="flex items-center justify-between w-full">
-                                  <span>{symbol}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-4 w-4 p-0 ml-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(symbol);
-                                    }}
-                                  >
-                                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  </Button>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        
-                        {/* All Symbols Section */}
-                        {filtered.others.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                              All Symbols {sortByVolume ? '(by Volume)' : '(A-Z)'}
-                            </div>
-                            {filtered.others.slice(0, 50).map(symbol => (
-                              <SelectItem key={symbol} value={symbol}>
-                                <div className="flex items-center justify-between w-full">
-                                  <span>{symbol}</span>
-                                   <Button
-                                     size="sm"
-                                     variant="ghost"
-                                     className="h-4 w-4 p-0 ml-2 hover:bg-transparent"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       toggleFavorite(symbol);
-                                     }}
-                                   >
-                                     <Star className={`h-3 w-3 transition-colors ${
-                                       favoriteSymbols.includes(symbol) 
-                                         ? 'fill-yellow-400 text-yellow-400' 
-                                         : 'text-muted-foreground hover:text-yellow-400'
-                                     }`} />
-                                   </Button>
-                                </div>
-                              </SelectItem>
-                            ))}
-                            {filtered.others.length > 50 && (
-                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                ... and {filtered.others.length - 50} more
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                </SelectContent>
-              </Select>
+                    })()}
+                  </div>
+                )}
+              </div>
+              
+              {/* Current Selection Display */}
+              <div className="text-xs text-muted-foreground">
+                Selected: <span className="font-medium text-foreground">{selectedSymbol}</span>
+              </div>
             </div>
           </div>
           <div>
