@@ -1,4 +1,4 @@
-export type StrategyType = 'ticklet-alpha' | 'bull-strategy';
+export type StrategyType = 'ticklet-alpha' | 'bull-strategy' | 'jam-bot';
 
 export interface Strategy {
   id: StrategyType;

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StrategyType, Strategy } from '@/types/strategy';
-import { TrendingUp, Zap, Settings, Info } from 'lucide-react';
+import { TrendingUp, Zap, Settings, Info, Bot, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface StrategySelectorProps {
   activeStrategy: StrategyType;
@@ -16,7 +17,8 @@ interface StrategySelectorProps {
 
 const strategyIcons = {
   'ticklet-alpha': Zap,
-  'bull-strategy': TrendingUp
+  'bull-strategy': TrendingUp,
+  'jam-bot': Bot
 } as const;
 
 const riskColors = {
@@ -32,31 +34,74 @@ export function StrategySelector({
   variant = 'full',
   className = '' 
 }: StrategySelectorProps) {
+  const [selectedStrategy, setSelectedStrategy] = useState<StrategyType>(activeStrategy);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  
   const activeStrategyConfig = strategies.find(s => s.id === activeStrategy);
+
+  const handleUseStrategy = async () => {
+    if (selectedStrategy === activeStrategy) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Simulate strategy switching delay for realistic UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      onStrategyChange(selectedStrategy);
+      
+      const strategy = strategies.find(s => s.id === selectedStrategy);
+      toast({
+        title: "✅ Strategy Applied",
+        description: `Now using: ${strategy?.displayName || selectedStrategy}`,
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Strategy Switch Failed", 
+        description: "Failed to apply selected strategy. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (variant === 'minimal') {
     return (
-      <Select value={activeStrategy} onValueChange={onStrategyChange}>
-        <SelectTrigger className={`w-full ${className}`}>
-          <SelectValue placeholder="Select strategy" />
-        </SelectTrigger>
-        <SelectContent className="bg-background border-border">
-          {strategies.map((strategy) => {
-            const Icon = strategyIcons[strategy.id];
-            return (
-              <SelectItem key={strategy.id} value={strategy.id}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span>{strategy.displayName}</span>
-                  <Badge className={`text-xs ${riskColors[strategy.riskLevel]}`}>
-                    {strategy.riskLevel}
-                  </Badge>
-                </div>
-              </SelectItem>
-            );
-          })}
-        </SelectContent>
-      </Select>
+      <div className={`flex items-center gap-2 ${className}`}>
+        <Select value={selectedStrategy} onValueChange={(value: string) => setSelectedStrategy(value as StrategyType)}>
+          <SelectTrigger className="w-full min-w-[200px]">
+            <SelectValue placeholder="Select strategy" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-border">
+            {strategies.map((strategy) => {
+              const Icon = strategyIcons[strategy.id];
+              return (
+                <SelectItem key={strategy.id} value={strategy.id}>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    <span>{strategy.displayName}</span>
+                    <Badge className={`text-xs ${riskColors[strategy.riskLevel]}`}>
+                      {strategy.riskLevel}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        {selectedStrategy !== activeStrategy && (
+          <Button 
+            onClick={handleUseStrategy} 
+            disabled={isLoading}
+            size="sm"
+            className="px-4"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Use'}
+          </Button>
+        )}
+      </div>
     );
   }
 
@@ -64,7 +109,7 @@ export function StrategySelector({
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <span className="text-sm text-muted-foreground">Strategy:</span>
-        <Select value={activeStrategy} onValueChange={onStrategyChange}>
+        <Select value={selectedStrategy} onValueChange={(value: string) => setSelectedStrategy(value as StrategyType)}>
           <SelectTrigger className="w-auto min-w-[180px]">
             <SelectValue placeholder="Select strategy" />
           </SelectTrigger>
@@ -87,6 +132,16 @@ export function StrategySelector({
             {activeStrategyConfig.riskLevel} risk
           </Badge>
         )}
+        {selectedStrategy !== activeStrategy && (
+          <Button 
+            onClick={handleUseStrategy} 
+            disabled={isLoading}
+            size="sm"
+            className="px-4"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Use'}
+          </Button>
+        )}
       </div>
     );
   }
@@ -101,29 +156,49 @@ export function StrategySelector({
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
-          <Select value={activeStrategy} onValueChange={onStrategyChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select trading strategy" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border-border">
-              {strategies.map((strategy) => {
-                const Icon = strategyIcons[strategy.id];
-                return (
-                  <SelectItem key={strategy.id} value={strategy.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span>{strategy.displayName}</span>
-                      </div>
-                      <Badge className={`ml-2 ${riskColors[strategy.riskLevel]}`}>
-                        {strategy.riskLevel}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <Select value={selectedStrategy} onValueChange={(value: string) => setSelectedStrategy(value as StrategyType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select trading strategy" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border-border">
+                  {strategies.map((strategy) => {
+                    const Icon = strategyIcons[strategy.id];
+                    return (
+                      <SelectItem key={strategy.id} value={strategy.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span>{strategy.displayName}</span>
+                          </div>
+                          <Badge className={`ml-2 ${riskColors[strategy.riskLevel]}`}>
+                            {strategy.riskLevel}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedStrategy !== activeStrategy && (
+              <Button 
+                onClick={handleUseStrategy} 
+                disabled={isLoading}
+                className="px-6"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Applying...
+                  </>
+                ) : (
+                  'Use Strategy'
+                )}
+              </Button>
+            )}
+          </div>
 
           {activeStrategyConfig && (
             <div className="bg-muted/50 rounded-lg p-4 space-y-3">
@@ -172,7 +247,9 @@ export function StrategyBadge({
   className?: string;
 }) {
   const Icon = strategyIcons[strategy];
-  const displayName = strategyName || (strategy === 'ticklet-alpha' ? 'Ticklet ALPHA' : 'Bull Strategy');
+  const displayName = strategyName || 
+    (strategy === 'ticklet-alpha' ? 'Ticklet ALPHA' : 
+     strategy === 'bull-strategy' ? 'Bull Strategy' : 'Jam Bot');
   
   return (
     <Badge variant="outline" className={`flex items-center gap-1 ${className}`}>
