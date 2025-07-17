@@ -36,7 +36,7 @@ const SignalGenerator = ({
   const [marketData, setMarketData] = useState<any>(null);
   const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
   const [isLoadingSymbols, setIsLoadingSymbols] = useState(false);
-  const [favoriteSymbols, setFavoriteSymbols] = useState<string[]>(['BTCUSDT', 'ETHUSDT', 'XRPUSDT']);
+  const [favoriteSymbols, setFavoriteSymbols] = useState<string[]>(['CHILGUYUSDT', 'MUBARAKUSDT', 'ETHUSDT', 'BTCUSDT', 'TRXUSDT', 'CVXUSDT', 'AUCTIONUSDT']);
   const [symbolSearch, setSymbolSearch] = useState("");
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [aiCommentary, setAiCommentary] = useState<string>("");
@@ -178,28 +178,63 @@ const SignalGenerator = ({
     return commentary;
   };
 
-  // Filter symbols for dropdown
+  // Filter symbols for dropdown with enhanced search and favorites prioritization
   const getFilteredSymbolsForDropdown = () => {
     const searchTerm = symbolSearch.toLowerCase();
     
+    // Helper function to get symbol volume from market data
+    const getSymbolVolume = (symbol: string) => {
+      // Try to find volume from allMarketData if available
+      const symbolData = allSymbols.indexOf(symbol);
+      return symbolData !== -1 ? symbolData : 0; // Fallback to index for sorting
+    };
+    
     if (!searchTerm) {
+      // Sort favorites by volume (descending)
+      const sortedFavorites = [...favoriteSymbols].sort((a, b) => {
+        if (sortByVolume) {
+          return getSymbolVolume(a) - getSymbolVolume(b);
+        }
+        return a.localeCompare(b);
+      });
+      
+      // Sort others by volume or alphabetically
+      const others = allSymbols.filter(symbol => !favoriteSymbols.includes(symbol));
+      const sortedOthers = sortByVolume 
+        ? others // Already sorted by volume from fetchAllSymbols
+        : others.sort((a, b) => a.localeCompare(b));
+      
       return {
-        favorites: favoriteSymbols,
-        others: allSymbols.filter(symbol => !favoriteSymbols.includes(symbol))
+        favorites: sortedFavorites,
+        others: sortedOthers
       };
     }
     
+    // Filter symbols based on search term (case-insensitive partial match)
     const filteredAll = allSymbols.filter(symbol => 
-      symbol.toLowerCase().includes(searchTerm)
+      symbol.toLowerCase().includes(searchTerm) ||
+      symbol.toLowerCase().startsWith(searchTerm) ||
+      symbol.replace('USDT', '').toLowerCase().includes(searchTerm)
     );
     
     const filteredFavorites = favoriteSymbols.filter(symbol => 
-      symbol.toLowerCase().includes(searchTerm)
+      symbol.toLowerCase().includes(searchTerm) ||
+      symbol.toLowerCase().startsWith(searchTerm) ||
+      symbol.replace('USDT', '').toLowerCase().includes(searchTerm)
     );
     
+    // Sort filtered results
+    const sortedFilteredFavorites = sortByVolume 
+      ? filteredFavorites.sort((a, b) => getSymbolVolume(a) - getSymbolVolume(b))
+      : filteredFavorites.sort((a, b) => a.localeCompare(b));
+    
+    const sortedFilteredOthers = filteredAll
+      .filter(symbol => !favoriteSymbols.includes(symbol))
+      .sort((a, b) => sortByVolume ? getSymbolVolume(a) - getSymbolVolume(b) : a.localeCompare(b));
+    
     return {
-      favorites: filteredFavorites,
-      others: filteredAll.filter(symbol => !favoriteSymbols.includes(symbol))
+      favorites: sortedFilteredFavorites,
+      others: sortedFilteredOthers
     };
   };
 
@@ -446,17 +481,21 @@ const SignalGenerator = ({
                               <SelectItem key={symbol} value={symbol}>
                                 <div className="flex items-center justify-between w-full">
                                   <span>{symbol}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-4 w-4 p-0 ml-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(symbol);
-                                    }}
-                                  >
-                                    <Star className="h-3 w-3 text-muted-foreground hover:text-yellow-400" />
-                                  </Button>
+                                   <Button
+                                     size="sm"
+                                     variant="ghost"
+                                     className="h-4 w-4 p-0 ml-2 hover:bg-transparent"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleFavorite(symbol);
+                                     }}
+                                   >
+                                     <Star className={`h-3 w-3 transition-colors ${
+                                       favoriteSymbols.includes(symbol) 
+                                         ? 'fill-yellow-400 text-yellow-400' 
+                                         : 'text-muted-foreground hover:text-yellow-400'
+                                     }`} />
+                                   </Button>
                                 </div>
                               </SelectItem>
                             ))}
