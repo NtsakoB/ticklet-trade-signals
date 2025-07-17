@@ -172,35 +172,143 @@ class StrategyManager {
   }
 
   private async executeBullStrategy(symbol: string, marketData: any): Promise<StrategyResult> {
-    // Bull Strategy logic - more aggressive for uptrends
+    // Bull Strategy - Based on your comprehensive technical analysis
     const price = parseFloat(marketData.lastPrice);
     const priceChange = parseFloat(marketData.priceChangePercent);
     const volume = parseFloat(marketData.volume) * price;
+    const high24h = parseFloat(marketData.highPrice);
+    const low24h = parseFloat(marketData.lowPrice);
     
-    const isUptrend = priceChange > 0;
-    const isStrongUptrend = priceChange > 2;
-    const isHighVolume = volume > 2000000; // Higher volume threshold
+    // === Technical Analysis ===
     const volatility = Math.abs(priceChange);
+    const atr = (high24h - low24h) / price * 100; // Simplified ATR
     
-    // Bull strategy favors BUY signals in uptrending markets
-    let confidence = 0.6;
-    if (isUptrend) confidence += 0.2;
-    if (isStrongUptrend) confidence += 0.1;
-    if (isHighVolume) confidence += 0.1;
-    confidence = Math.min(confidence, 0.95);
+    // === RSI Logic (simplified) ===
+    const rsiOversold = priceChange < -3; // RSI < 25 equivalent
+    const rsiRecovering = rsiOversold && priceChange > -5; // RSI rising from oversold
+    const rsiOverbought = priceChange > 5; // RSI > 80 equivalent
     
-    // More aggressive targeting for bull strategy
-    const signalType = isUptrend ? 'BUY' : (priceChange < -3 ? 'SELL' : 'BUY'); // Favor BUY
+    // === MACD Logic (simplified trend momentum) ===
+    const macdBullish = priceChange > 0 && volatility > 1; // MACD > signal
+    const macdBearish = priceChange < 0 && volatility > 1; // MACD < signal
+    
+    // === Volume Analysis ===
+    const volThreshold = 100000; // $100k threshold from your strategy
+    const validVolume = volume > volThreshold;
+    const volSpike = volume > volThreshold * 1.5; // Volume spike detection
+    
+    // === EMA Alignment (trend direction) ===
+    const emaAlign = priceChange > 0; // Simplified: price above EMA20 > EMA50
+    
+    // === Elliott Wave / Fibonacci Zones ===
+    const priceRange = high24h - low24h;
+    const fib0382 = high24h - 0.382 * priceRange;
+    const fib050 = high24h - 0.5 * priceRange;
+    const fib0618 = high24h - 0.618 * priceRange;
+    const inFibZone = price >= fib050 && price <= fib0382;
+    const missedFibZone = price < fib050;
+    
+    // === Order Block Logic (simplified) ===
+    const pullbackZone = price <= low24h + (high24h - low24h) * 0.3;
+    const notOverextended = volatility < atr * 2;
+    
+    // === Confidence Engine (your dynamic scoring) ===
+    let confidence = 0.7; // Base 70%
+    let leverage = 5;
+    let riskPct = 0.20;
+    
+    // High confidence conditions
+    if (rsiOversold && macdBullish && volSpike && inFibZone) {
+      confidence = 0.9; // 90%
+      leverage = 10;
+      riskPct = 0.10;
+    } else if (macdBullish && rsiRecovering && volSpike) {
+      confidence = 0.8; // 80%
+      leverage = 7;
+      riskPct = 0.15;
+    } else if (macdBullish && emaAlign) {
+      confidence = 0.7; // 70%
+      leverage = 5;
+      riskPct = 0.20;
+    } else {
+      confidence = 0.6; // 60%
+      leverage = 3;
+      riskPct = 0.25;
+    }
+    
+    // === Entry Conditions ===
+    
+    // Primary Long Condition (your comprehensive setup)
+    const primaryLongCondition = 
+      rsiOversold && 
+      rsiRecovering && 
+      macdBullish && 
+      pullbackZone && 
+      emaAlign && 
+      volSpike && 
+      notOverextended && 
+      validVolume && 
+      inFibZone;
+    
+    // Fallback Long Condition (missed Fib zone entry)
+    const fallbackLongCondition = 
+      missedFibZone && 
+      price <= fib050 && 
+      price >= fib0618 && 
+      rsiOversold && 
+      macdBullish && 
+      volSpike && 
+      emaAlign && 
+      validVolume;
+    
+    // Short Condition (reversal from overbought)
+    const shortCondition = 
+      rsiOverbought && 
+      macdBearish && 
+      validVolume;
+    
+    // === Signal Generation ===
+    let signalType: 'BUY' | 'SELL' = 'BUY';
+    
+    if (primaryLongCondition || fallbackLongCondition) {
+      signalType = 'BUY';
+    } else if (shortCondition) {
+      signalType = 'SELL';
+    } else {
+      // Default to trend following if no specific condition
+      signalType = priceChange > 0 ? 'BUY' : 'SELL';
+      confidence = Math.max(0.5, confidence * 0.7); // Reduce confidence for default signals
+    }
+    
+    // === Dynamic Targets and Stop Loss ===
+    const slDynamic = riskPct; // Your dynamic SL percentage
     
     const targets = signalType === 'BUY' 
-      ? [price * 1.03, price * 1.07, price * 1.12] // More aggressive targets
-      : [price * 0.97, price * 0.93, price * 0.88];
+      ? [
+          price * (1 + atr/100 * 1.5), // T1: 1.5x ATR
+          price * (1 + atr/100 * 3),   // T2: 3x ATR  
+          price * (1 + atr/100 * 5)    // T3: 5x ATR
+        ]
+      : [
+          price * (1 - atr/100 * 1.5), // T1: 1.5x ATR
+          price * (1 - atr/100 * 3),   // T2: 3x ATR
+          price * (1 - atr/100 * 5)    // T3: 5x ATR
+        ];
     
-    const stopLoss = signalType === 'BUY' ? price * 0.95 : price * 1.05; // Wider stops
-    const leverage = Math.max(2, Math.min(25, Math.floor((confidence * 20) / (volatility / 3 + 1)))); // Higher leverage
+    // Swing-based stop loss
+    const swingBasedSL = signalType === 'BUY' 
+      ? low24h - (price * slDynamic) 
+      : high24h + (price * slDynamic);
+    
+    const stopLoss = swingBasedSL;
+    
+    // === Capital Logic ===
+    const accountEquity = 10000; // Your base capital
+    const tradableCap = accountEquity * 0.5; // 50% of equity
+    const usedCapital = tradableCap * riskPct;
     
     const signal = {
-      id: `signal-${Date.now()}`,
+      id: `bull-signal-${Date.now()}`,
       symbol,
       type: signalType,
       entryPrice: price,
@@ -213,23 +321,42 @@ class StrategyManager {
       status: 'active',
       strategy: 'bull-strategy' as StrategyType,
       strategyName: 'Bull Strategy',
+      riskPercent: riskPct,
+      usedCapital,
       marketData: {
         priceChange,
         volume,
-        high24h: parseFloat(marketData.highPrice),
-        low24h: parseFloat(marketData.lowPrice),
-        volatility
+        high24h,
+        low24h,
+        volatility,
+        atr,
+        fibLevels: { fib0382, fib050, fib0618 },
+        inFibZone,
+        volSpike,
+        emaAlign
       }
     };
+
+    // === Reasoning ===
+    let reasoning = `Bull Strategy Analysis: `;
+    if (primaryLongCondition) {
+      reasoning += `Primary long setup with RSI oversold recovery, MACD bullish, volume spike, and Fibonacci zone entry`;
+    } else if (fallbackLongCondition) {
+      reasoning += `Fallback long entry in missed Fibonacci zone with volume confirmation`;
+    } else if (shortCondition) {
+      reasoning += `Short setup from overbought RSI with bearish MACD divergence`;
+    } else {
+      reasoning += `Trend following signal based on momentum and volume`;
+    }
 
     return {
       signal,
       confidence,
-      reasoning: `Aggressive bull momentum detected with ${isStrongUptrend ? 'strong' : 'moderate'} uptrend and ${isHighVolume ? 'high' : 'adequate'} volume`,
+      reasoning,
       metadata: {
         strategy: 'bull-strategy',
         timestamp: new Date().toISOString(),
-        indicators: ['Momentum', 'Trend', 'Volume', 'Breakout']
+        indicators: ['RSI', 'MACD', 'Elliott Wave', 'Fibonacci', 'Order Blocks', 'Volume', 'ATR']
       }
     };
   }
