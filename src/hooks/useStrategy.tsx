@@ -31,11 +31,16 @@ export function StrategyProvider({ children }: StrategyProviderProps) {
     return strategyManager.getAllStrategies();
   };
 
+  const getActiveStrategyConfig = (): Strategy => {
+    return strategyManager.getActiveStrategyConfig();
+  };
+
   const contextValue: StrategyContextType = {
     activeStrategy,
     setActiveStrategy: handleStrategyChange,
     getStrategyConfig,
-    getAllStrategies
+    getAllStrategies,
+    getActiveStrategyConfig
   };
 
   return (

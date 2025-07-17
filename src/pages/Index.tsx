@@ -21,6 +21,7 @@ import MarketSummary from "@/components/MarketSummary";
 import SecuritySettings from "@/components/SecuritySettings";
 import { StrategySelector } from "@/components/ui/strategy-selector";
 import { SymbolSelector } from "@/components/SymbolSelector";
+import { MarketInsights } from "@/components/MarketInsights";
 import { useStrategy } from "@/hooks/useStrategy";
 import { fetchMultipleSymbols, convertToSignals, calculateDashboardStats, generateProjections } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
@@ -407,6 +408,7 @@ const Index = () => {
                   />
                 </div>
                 <TradingViewChart symbol={selectedSymbol} height={600} />
+                <MarketInsights symbol={selectedSymbol} />
               </div>
             )}
             

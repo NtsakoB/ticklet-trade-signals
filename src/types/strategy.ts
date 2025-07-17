@@ -32,4 +32,5 @@ export interface StrategyContext {
   setActiveStrategy: (strategy: StrategyType) => void;
   getStrategyConfig: (strategy: StrategyType) => Strategy;
   getAllStrategies: () => Strategy[];
+  getActiveStrategyConfig: () => Strategy;
 }
