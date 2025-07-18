@@ -6,139 +6,52 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- User profiles table (extends Supabase auth.users)
-CREATE TABLE IF NOT EXISTS public.user_profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    display_name TEXT,
-    avatar_url TEXT,
-    timezone TEXT DEFAULT 'UTC',
-    preferred_currency TEXT DEFAULT 'USDT',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+create table user_profiles (
+  id uuid references auth.users not null primary key,
+  display_name text,
+  avatar_url text,
+  trading_preferences jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- User credentials and API keys (encrypted storage)
-CREATE TABLE IF NOT EXISTS public.user_credentials (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    provider TEXT NOT NULL, -- 'binance', 'telegram', 'openai', etc.
-    credential_type TEXT NOT NULL, -- 'api_key', 'secret_key', 'token', etc.
-    encrypted_value TEXT NOT NULL, -- PGP encrypted credentials
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, provider, credential_type)
+create table user_credentials (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  credential_type text check (credential_type in ('binance_api', 'telegram_bot', 'other')),
+  encrypted_key text not null,
+  encrypted_secret text,
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- Trading signals and recommendations
-CREATE TABLE IF NOT EXISTS public.trading_signals (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    symbol TEXT NOT NULL,
-    signal_type TEXT NOT NULL, -- 'BUY', 'SELL', 'HOLD', 'WAIT'
-    strategy TEXT NOT NULL, -- 'scalping', 'swing', 'momentum'
-    confidence_score DECIMAL(5,2) CHECK (confidence_score >= 0 AND confidence_score <= 100),
-    entry_price DECIMAL(20,8),
-    suggested_entry_min DECIMAL(20,8),
-    suggested_entry_max DECIMAL(20,8),
-    stop_loss DECIMAL(20,8),
-    take_profit_1 DECIMAL(20,8),
-    take_profit_2 DECIMAL(20,8),
-    take_profit_3 DECIMAL(20,8),
-    market_condition TEXT, -- 'bullish', 'bearish', 'sideways'
-    technical_indicators JSONB, -- RSI, MACD, volume, etc.
-    ai_analysis JSONB, -- AI-generated insights and reasoning
-    is_actionable BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE
+create table trading_signals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  symbol text,
+  signal_type text check (signal_type in ('BUY', 'SELL')),
+  entry_price numeric,
+  stop_loss numeric,
+  take_profits numeric[],
+  anomaly_score numeric,
+  strategy_used text,
+  telegram_sent boolean default false,
+  created_at timestamptz default now()
 );
 
 -- Bot configurations and settings
-CREATE TABLE IF NOT EXISTS public.bot_configurations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    config_name TEXT NOT NULL,
-    is_active BOOLEAN DEFAULT false,
-    trading_mode TEXT DEFAULT 'paper', -- 'paper', 'live'
-    max_open_trades INTEGER DEFAULT 5,
-    risk_per_trade DECIMAL(5,2) DEFAULT 2.0, -- percentage
-    leverage INTEGER DEFAULT 10,
-    dynamic_leverage BOOLEAN DEFAULT false,
-    auto_trading BOOLEAN DEFAULT false,
-    telegram_notifications BOOLEAN DEFAULT true,
-    strategies_enabled TEXT[] DEFAULT ARRAY['scalping', 'swing'],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, config_name)
-);
-
--- Trading history and performance
-CREATE TABLE IF NOT EXISTS public.trades (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    signal_id UUID REFERENCES public.trading_signals(id),
-    symbol TEXT NOT NULL,
-    trade_type TEXT NOT NULL, -- 'BUY', 'SELL'
-    entry_price DECIMAL(20,8) NOT NULL,
-    exit_price DECIMAL(20,8),
-    quantity DECIMAL(20,8) NOT NULL,
-    leverage INTEGER DEFAULT 1,
-    entry_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    exit_time TIMESTAMP WITH TIME ZONE,
-    pnl DECIMAL(20,8),
-    pnl_percentage DECIMAL(10,4),
-    status TEXT DEFAULT 'open', -- 'open', 'closed', 'cancelled'
-    trade_mode TEXT DEFAULT 'paper', -- 'paper', 'live'
-    strategy TEXT,
-    confidence_score DECIMAL(5,2),
-    fees DECIMAL(20,8) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Backtest results storage
-CREATE TABLE IF NOT EXISTS public.backtest_results (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    strategy TEXT NOT NULL,
-    symbol TEXT,
-    timeframe TEXT NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    initial_balance DECIMAL(20,8) NOT NULL,
-    final_balance DECIMAL(20,8) NOT NULL,
-    total_return DECIMAL(10,4),
-    total_trades INTEGER,
-    winning_trades INTEGER,
-    losing_trades INTEGER,
-    win_rate DECIMAL(5,2),
-    max_drawdown DECIMAL(10,4),
-    sharpe_ratio DECIMAL(10,4),
-    profit_factor DECIMAL(10,4),
-    results_data JSONB, -- detailed trade-by-trade results
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- AI learning and performance tracking
-CREATE TABLE IF NOT EXISTS public.ai_learning_data (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    signal_id UUID REFERENCES public.trading_signals(id),
-    trade_id UUID REFERENCES public.trades(id),
-    market_data JSONB NOT NULL, -- price, volume, indicators at signal time
-    prediction_accuracy DECIMAL(5,2),
-    actual_outcome TEXT, -- 'profitable', 'loss', 'breakeven'
-    learning_feedback JSONB, -- what the AI learned from this trade
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Telegram bot interactions
-CREATE TABLE IF NOT EXISTS public.telegram_interactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    telegram_user_id BIGINT,
-    message_type TEXT NOT NULL, -- 'signal', 'command', 'alert'
-    message_content TEXT,
-    bot_response TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+create table bot_configurations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  max_risk_per_trade numeric,
+  max_open_trades integer,
+  preferred_strategies text[],
+  telegram_chat_id text,
+  is_active boolean default true,
+  created_at timestamptz default now()
 );
 
 -- Create indexes for better performance
