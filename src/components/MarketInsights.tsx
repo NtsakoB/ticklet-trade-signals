@@ -28,6 +28,11 @@ interface MarketAnalysis {
     targets: number[];
     stopLoss: number;
   };
+  suggestedEntryRange: {
+    min: number;
+    max: number;
+    type: 'pullback' | 'breakout' | 'wait' | 'neutral';
+  };
 }
 
 export function MarketInsights({ symbol, className }: MarketInsightsProps) {
@@ -91,6 +96,62 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
     } catch (error) {
       console.error(`[MarketInsights] Market data fetch error for ${symbol}:`, error);
       return null;
+    }
+  };
+
+  // Helper function to calculate suggested entry ranges based on action type
+  const calculateSuggestedEntryRange = (price: number, atr: number, action: string, high24h: number, low24h: number) => {
+    const atrBuffer = (atr * price / 100) * 0.5;
+    const entryType = action.toLowerCase().includes('pullback') ? 'pullback' :
+                     action.toLowerCase().includes('breakout') ? 'breakout' :
+                     action.toLowerCase().includes('wait') ? 'wait' : 'neutral';
+    
+    try {
+      switch (entryType) {
+        case 'pullback':
+          // Fibonacci retracement levels for pullback entries
+          const priceRange = high24h - low24h;
+          const fib382 = price - (priceRange * 0.382);
+          const fib618 = price - (priceRange * 0.618);
+          return {
+            min: Math.max(fib618 - atrBuffer, low24h),
+            max: Math.min(fib382 + atrBuffer, price),
+            type: 'pullback' as const
+          };
+        
+        case 'breakout':
+          // Entry above resistance for breakout
+          const breakoutLevel = high24h;
+          return {
+            min: breakoutLevel + atrBuffer,
+            max: breakoutLevel + (atrBuffer * 2),
+            type: 'breakout' as const
+          };
+        
+        case 'wait':
+          // Conservative entry near support
+          const supportLevel = low24h + atrBuffer;
+          return {
+            min: supportLevel,
+            max: supportLevel + atrBuffer,
+            type: 'wait' as const
+          };
+        
+        default:
+          // Neutral zone around current price
+          return {
+            min: price - atrBuffer,
+            max: price + atrBuffer,
+            type: 'neutral' as const
+          };
+      }
+    } catch (error) {
+      console.warn(`Error calculating entry range for ${entryType}:`, error);
+      return {
+        min: price - atrBuffer,
+        max: price + atrBuffer,
+        type: 'neutral' as const
+      };
     }
   };
 
@@ -177,6 +238,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
       Math.max(price * 1.08, price + (atr * price / 100) * 1.5)
     ];
 
+    const suggestedEntryRange = calculateSuggestedEntryRange(price, atr, action, high24h, low24h);
+
     return {
       condition,
       forecast,
@@ -192,7 +255,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
         resistance,
         targets,
         stopLoss
-      }
+      },
+      suggestedEntryRange
     };
   };
 
@@ -246,6 +310,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
         ? "Avoid new longs, consider profit taking"
         : "Wait for clearer signals";
 
+    const suggestedEntryRange = calculateSuggestedEntryRange(price, atr, action, high24h, low24h);
+
     return {
       condition,
       forecast,
@@ -265,7 +331,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
           price * (1 + atr/100 * 3.5)
         ],
         stopLoss: price * (1 - (confidence > 0.8 ? 0.10 : 0.15))
-      }
+      },
+      suggestedEntryRange
     };
   };
 
@@ -315,6 +382,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
         ? "Consider entry with tight stop"
         : "Wait for better setup";
 
+    const suggestedEntryRange = calculateSuggestedEntryRange(price, atr, action, high24h, low24h);
+
     return {
       condition,
       forecast,
@@ -334,7 +403,8 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
           price + (1.5 * atr * price / 100)
         ],
         stopLoss: price - (1.5 * atr * price / 100)
-      }
+      },
+      suggestedEntryRange
     };
   };
 
@@ -450,7 +520,12 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
                 <AlertTriangle className="h-4 w-4" />
                 Actionable Suggestion
               </h4>
-              <p className="text-sm text-muted-foreground">{analysis.action}</p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{analysis.action}</p>
+                <p className="text-sm text-blue-400 font-mono">
+                  → Suggested {analysis.suggestedEntryRange.type} range: ${analysis.suggestedEntryRange.min.toFixed(analysis.suggestedEntryRange.min < 1 ? 6 : 2)} – ${analysis.suggestedEntryRange.max.toFixed(analysis.suggestedEntryRange.max < 1 ? 6 : 2)}
+                </p>
+              </div>
             </div>
 
             {/* Key Levels */}
