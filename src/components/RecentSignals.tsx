@@ -32,7 +32,7 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
                   <span className="font-semibold">{signal.symbol}</span>
                   {signal.anomaly && (
                     <Badge variant="outline" className="text-amber-400 border-amber-400/20">
-                      Anomaly
+                      Anomaly: {signal.anomaly_score ?? 0}
                     </Badge>
                   )}
                 </div>
@@ -41,8 +41,18 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
                     ? `$${signal.entryPrice.toFixed(signal.entryPrice < 1 ? 6 : 4)}` 
                     : '—'} • Stop: {signal.stopLoss > 0 
                     ? `$${signal.stopLoss.toFixed(signal.stopLoss < 1 ? 6 : 4)}` 
-                    : '—'} • Anomaly: {signal.anomaly_score ?? 0}
+                    : '—'}
                 </p>
+                {signal.targets && signal.targets.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Targets: {signal.targets.slice(0, 3).map((target, index) => (
+                      <span key={index}>
+                        🎯 ${target.toFixed(target < 1 ? 6 : 2)}
+                        {index < Math.min(signal.targets!.length, 3) - 1 ? ' • ' : ''}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(signal.timestamp), { addSuffix: true })}
                 </p>
