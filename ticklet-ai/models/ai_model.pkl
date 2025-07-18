@@ -1,0 +1,2 @@
+# Placeholder for saved AI model
+# This will be a binary pickle file containing the trained model

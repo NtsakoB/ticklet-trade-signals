@@ -1,0 +1,11 @@
+{
+  "confidence_threshold": 0.75,
+  "risk_threshold": 0.3,
+  "volatility_threshold": 0.25,
+  "volume_threshold": 100000,
+  "decision_boundaries": {
+    "buy": 0.8,
+    "sell": 0.2,
+    "hold": [0.2, 0.8]
+  }
+}
