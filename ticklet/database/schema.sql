@@ -1,0 +1,2 @@
+-- Database schema for Ticklet Trading Bot
+-- TODO: Define database tables and relationships
