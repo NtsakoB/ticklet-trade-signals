@@ -58,39 +58,87 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
     generateInsights();
   }, [symbol, activeStrategy]);
 
-  const fetchMarketData = async (symbol: string) => {
+  const fetchMarketData = async (symbol: string, retryCount = 0) => {
     try {
-      const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
-      if (!response.ok) throw new Error('Failed to fetch market data');
-      return await response.json();
+      // Validate and normalize symbol format
+      const normalizedSymbol = symbol.toUpperCase().replace(/[^A-Z]/g, '');
+      console.log(`[MarketInsights] Fetching data for ${normalizedSymbol}...`);
+      
+      const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${normalizedSymbol}`);
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Validate price data is not zero or invalid
+      const price = parseFloat(data.lastPrice);
+      if (!price || price <= 0 || isNaN(price)) {
+        console.warn(`[WARN] Zero/invalid price for ${normalizedSymbol}: ${data.lastPrice}`);
+        
+        // Retry up to 2 times with delay
+        if (retryCount < 2) {
+          console.log(`[MarketInsights] Retrying fetch for ${normalizedSymbol} (attempt ${retryCount + 1})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          return fetchMarketData(symbol, retryCount + 1);
+        }
+        
+        throw new Error(`Invalid price data for ${normalizedSymbol}: ${data.lastPrice}`);
+      }
+      
+      console.log(`[MarketInsights] Successfully fetched data for ${normalizedSymbol}: $${price}`);
+      return data;
     } catch (error) {
-      console.error('Market data fetch error:', error);
+      console.error(`[MarketInsights] Market data fetch error for ${symbol}:`, error);
       return null;
     }
   };
 
   const analyzeMarketWithStrategy = async (symbol: string, marketData: any, strategy: StrategyType): Promise<MarketAnalysis> => {
+    // Parse and validate all numeric values
     const price = parseFloat(marketData.lastPrice);
     const priceChange = parseFloat(marketData.priceChangePercent);
-    const volume = parseFloat(marketData.volume) * price;
+    const volume = parseFloat(marketData.volume);
     const high24h = parseFloat(marketData.highPrice);
     const low24h = parseFloat(marketData.lowPrice);
-    const volatility = Math.abs(priceChange);
-    const atr = (high24h - low24h) / price * 100;
+    
+    // Validate critical values
+    if (!price || price <= 0 || isNaN(price)) {
+      console.error(`[WARN] Invalid price for ${symbol}: ${marketData.lastPrice}`);
+      throw new Error(`Invalid price data for ${symbol}`);
+    }
+    
+    if (!high24h || !low24h || high24h <= 0 || low24h <= 0) {
+      console.error(`[WARN] Invalid high/low for ${symbol}: High=${high24h}, Low=${low24h}`);
+      throw new Error(`Invalid price range data for ${symbol}`);
+    }
+    
+    // Calculate derived values safely
+    const volatility = Math.abs(priceChange || 0);
+    const atr = ((high24h - low24h) / price) * 100;
+    const volumeUSD = (volume || 0) * price;
+    
+    console.log(`[MarketInsights] Analysis data for ${symbol}: Price=$${price}, Change=${priceChange}%, Volume=$${volumeUSD.toLocaleString()}, ATR=${atr.toFixed(2)}%`);
 
     switch (strategy) {
       case 'ticklet-alpha':
-        return analyzeTickletAlpha(price, priceChange, volume, volatility, high24h, low24h, atr);
+        return analyzeTickletAlpha(price, priceChange, volumeUSD, volatility, high24h, low24h, atr);
       case 'bull-strategy':
-        return analyzeBullStrategy(price, priceChange, volume, volatility, high24h, low24h, atr);
+        return analyzeBullStrategy(price, priceChange, volumeUSD, volatility, high24h, low24h, atr);
       case 'jam-bot':
-        return analyzeJamBot(price, priceChange, volume, volatility, high24h, low24h, atr);
+        return analyzeJamBot(price, priceChange, volumeUSD, volatility, high24h, low24h, atr);
       default:
-        return analyzeTickletAlpha(price, priceChange, volume, volatility, high24h, low24h, atr);
+        return analyzeTickletAlpha(price, priceChange, volumeUSD, volatility, high24h, low24h, atr);
     }
   };
 
   const analyzeTickletAlpha = (price: number, priceChange: number, volume: number, volatility: number, high24h: number, low24h: number, atr: number): MarketAnalysis => {
+    // Validate inputs to prevent zero values
+    if (!price || price <= 0) {
+      console.error(`[WARN] Zero price in analyzeTickletAlpha: ${price}`);
+      throw new Error('Invalid price for analysis');
+    }
+    
     const isUptrend = priceChange > 0;
     const isHighVolume = volume > 1000000;
     
@@ -118,6 +166,17 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
       ? "Monitor closely - high volatility period"
       : "Check again in 2-4 hours";
 
+    // Calculate key levels with proper validation
+    const support = Math.max(low24h, price * 0.95);
+    const resistance = Math.max(high24h, price * 1.05);
+    const stopLoss = Math.max(price * 0.97, support * 0.99);
+    
+    const targets = [
+      Math.max(price * 1.02, price + (atr * price / 100) * 0.5),
+      Math.max(price * 1.05, price + (atr * price / 100) * 1.0),
+      Math.max(price * 1.08, price + (atr * price / 100) * 1.5)
+    ];
+
     return {
       condition,
       forecast,
@@ -129,10 +188,10 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
       confidence: confidence * 100,
       reasoning: `RSI and MACD analysis with ${isHighVolume ? 'high' : 'moderate'} volume confirmation. AI/ML confidence: ${Math.round(confidence * 100)}%`,
       keyLevels: {
-        support: low24h,
-        resistance: high24h,
-        targets: [price * 1.02, price * 1.05, price * 1.08],
-        stopLoss: price * 0.97
+        support,
+        resistance,
+        targets,
+        stopLoss
       }
     };
   };
@@ -400,19 +459,39 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="text-red-400">Support:</span>
-                  <p className="font-mono">${analysis.keyLevels.support.toFixed(4)}</p>
+                  <p className="font-mono">
+                    {analysis.keyLevels.support > 0 
+                      ? `$${analysis.keyLevels.support.toFixed(analysis.keyLevels.support < 1 ? 6 : 4)}`
+                      : '—'
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="text-green-400">Resistance:</span>
-                  <p className="font-mono">${analysis.keyLevels.resistance.toFixed(4)}</p>
+                  <p className="font-mono">
+                    {analysis.keyLevels.resistance > 0 
+                      ? `$${analysis.keyLevels.resistance.toFixed(analysis.keyLevels.resistance < 1 ? 6 : 4)}`
+                      : '—'
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="text-blue-400">Target 1:</span>
-                  <p className="font-mono">${analysis.keyLevels.targets[0].toFixed(4)}</p>
+                  <p className="font-mono">
+                    {analysis.keyLevels.targets[0] > 0 
+                      ? `$${analysis.keyLevels.targets[0].toFixed(analysis.keyLevels.targets[0] < 1 ? 6 : 4)}`
+                      : '—'
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="text-orange-400">Stop Loss:</span>
-                  <p className="font-mono">${analysis.keyLevels.stopLoss.toFixed(4)}</p>
+                  <p className="font-mono">
+                    {analysis.keyLevels.stopLoss > 0 
+                      ? `$${analysis.keyLevels.stopLoss.toFixed(analysis.keyLevels.stopLoss < 1 ? 6 : 4)}`
+                      : '—'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -425,7 +504,13 @@ export function MarketInsights({ symbol, className }: MarketInsightsProps) {
           </>
         ) : (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Click "Refresh" to generate market insights</p>
+            <div className="space-y-2">
+              <AlertTriangle className="h-8 w-8 mx-auto text-yellow-500" />
+              <p className="text-muted-foreground">⚠️ Data unavailable for this symbol at the moment</p>
+              <p className="text-xs text-muted-foreground">
+                This may be due to an invalid symbol or API issues. Try a different symbol or refresh.
+              </p>
+            </div>
           </div>
         )}
       </CardContent>
