@@ -14,8 +14,19 @@ class PaperTradingService {
     localStorage.setItem(this.PAPER_BALANCE_KEY, balance.toString());
   }
   
-  // Execute a paper trade
+  // Execute a paper trade with zero-value validation
   static async executePaperTrade(signal: any): Promise<StoredTrade> {
+    // Validate signal data to prevent zero values
+    if (!signal.entryPrice || signal.entryPrice <= 0) {
+      console.error(`[PaperTrading] Rejecting trade with zero entry price for ${signal.symbol}: ${signal.entryPrice}`);
+      throw new Error(`Invalid signal: Zero entry price for ${signal.symbol}`);
+    }
+    
+    if (!signal.stopLoss || signal.stopLoss <= 0) {
+      console.error(`[PaperTrading] Rejecting trade with zero stop loss for ${signal.symbol}: ${signal.stopLoss}`);
+      throw new Error(`Invalid signal: Zero stop loss for ${signal.symbol}`);
+    }
+    
     const currentBalance = this.getPaperBalance();
     const settings = StorageService.getSettings();
     
@@ -23,6 +34,14 @@ class PaperTradingService {
     const riskAmount = (currentBalance * settings.riskPerTrade) / 100;
     const leverage = settings.dynamicLeverage ? this.calculateDynamicLeverage(signal) : settings.leverage;
     const quantity = (riskAmount * leverage) / signal.entryPrice;
+    
+    // Validate calculated quantity
+    if (!quantity || quantity <= 0 || isNaN(quantity)) {
+      console.error(`[PaperTrading] Invalid quantity calculation for ${signal.symbol}: ${quantity}`);
+      throw new Error(`Invalid position size calculation for ${signal.symbol}`);
+    }
+    
+    console.log(`[PaperTrading] Executing paper trade for ${signal.symbol}: Entry=${signal.entryPrice}, Quantity=${quantity}, Leverage=${leverage}x`);
     
     const trade: StoredTrade = {
       id: `paper-${Date.now()}-${Math.random()}`,
@@ -41,7 +60,7 @@ class PaperTradingService {
     return trade;
   }
   
-  // Close a paper trade
+  // Close a paper trade with validation
   static async closePaperTrade(tradeId: string): Promise<void> {
     const trades = StorageService.getTrades();
     const trade = trades.find(t => t.id === tradeId);
@@ -57,6 +76,13 @@ class PaperTradingService {
     }
     
     const currentPrice = parseFloat(marketData.lastPrice);
+    
+    // Validate current price
+    if (!currentPrice || currentPrice <= 0 || isNaN(currentPrice)) {
+      console.error(`[PaperTrading] Invalid current price for ${trade.symbol}: ${currentPrice}`);
+      throw new Error(`Invalid current price for ${trade.symbol}`);
+    }
+    
     const entryValue = trade.quantity * trade.entryPrice;
     const exitValue = trade.quantity * currentPrice;
     
@@ -66,6 +92,14 @@ class PaperTradingService {
     } else {
       pnl = (entryValue - exitValue) * trade.leverage;
     }
+    
+    // Validate PnL calculation
+    if (isNaN(pnl)) {
+      console.error(`[PaperTrading] Invalid PnL calculation for ${trade.symbol}: ${pnl}`);
+      pnl = 0; // Set to zero if calculation fails
+    }
+    
+    console.log(`[PaperTrading] Closing paper trade for ${trade.symbol}: Entry=${trade.entryPrice}, Exit=${currentPrice}, PnL=${pnl.toFixed(2)}`);
     
     // Update paper balance
     const currentBalance = this.getPaperBalance();

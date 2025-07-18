@@ -124,13 +124,25 @@ class StrategyManager {
   }
 
   private async executeTickletAlphaStrategy(symbol: string, marketData: any): Promise<StrategyResult> {
-    // Existing Ticklet ALPHA logic
+    // Parse and validate all numeric values with zero-value checks
     const price = parseFloat(marketData.lastPrice);
-    const priceChange = parseFloat(marketData.priceChangePercent);
-    const volume = parseFloat(marketData.volume) * price;
+    const priceChange = parseFloat(marketData.priceChangePercent) || 0;
+    const volume = parseFloat(marketData.volume) || 0;
+    
+    // CRITICAL: Validate price data to prevent zero values
+    if (!price || price <= 0 || isNaN(price)) {
+      console.error(`[WARN] Zero/invalid price in Ticklet Alpha for ${symbol}: ${marketData.lastPrice}`);
+      throw new Error(`Invalid price data for ${symbol}: Cannot generate signal with zero price`);
+    }
+    
+    // Calculate volume in USD with validation
+    const volumeUSD = volume * price;
+    if (volumeUSD <= 0) {
+      console.warn(`[WARN] Zero volume detected for ${symbol}: Volume=${volume}, Price=${price}`);
+    }
     
     const isUptrend = priceChange > 0;
-    const isHighVolume = volume > 1000000;
+    const isHighVolume = volumeUSD > 1000000;
     const volatility = Math.abs(priceChange);
     
     let confidence = 0.7;
@@ -141,12 +153,38 @@ class StrategyManager {
     
     const signalType = isUptrend && volatility > 1 ? 'BUY' : 'SELL';
     
-    const targets = signalType === 'BUY' 
-      ? [price * 1.02, price * 1.05, price * 1.08]
-      : [price * 0.98, price * 0.95, price * 0.92];
+    // Calculate targets with proper validation and scaling for micro-priced tokens
+    const atrPct = 2; // Default ATR percentage for target calculation
+    const stopLossBuffer = 0.03; // 3% stop loss buffer
     
-    const stopLoss = signalType === 'BUY' ? price * 0.97 : price * 1.03;
+    let targets: number[];
+    let stopLoss: number;
+    
+    if (signalType === 'BUY') {
+      targets = [
+        Math.max(price * 1.02, price + (atrPct * price / 100) * 0.5),
+        Math.max(price * 1.05, price + (atrPct * price / 100) * 1.0),
+        Math.max(price * 1.08, price + (atrPct * price / 100) * 1.5)
+      ];
+      stopLoss = Math.max(price * (1 - stopLossBuffer), price * 0.97);
+    } else {
+      targets = [
+        Math.min(price * 0.98, price - (atrPct * price / 100) * 0.5),
+        Math.min(price * 0.95, price - (atrPct * price / 100) * 1.0),
+        Math.min(price * 0.92, price - (atrPct * price / 100) * 1.5)
+      ];
+      stopLoss = Math.min(price * (1 + stopLossBuffer), price * 1.03);
+    }
+    
+    // Validate that all calculated values are valid
+    if (targets.some(t => t <= 0 || isNaN(t)) || stopLoss <= 0 || isNaN(stopLoss)) {
+      console.error(`[WARN] Invalid target/SL calculation for ${symbol}: Targets=${targets}, SL=${stopLoss}`);
+      throw new Error(`Invalid signal calculation for ${symbol}`);
+    }
+    
     const leverage = Math.max(1, Math.min(20, Math.floor((confidence * 15) / (volatility / 2 + 1))));
+    
+    console.log(`[StrategyManager] Ticklet Alpha signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${(confidence * 100).toFixed(1)}%`);
     
     const signal = {
       id: `signal-${Date.now()}`,
@@ -164,9 +202,9 @@ class StrategyManager {
       strategyName: 'Ticklet ALPHA Strategy',
       marketData: {
         priceChange,
-        volume,
-        high24h: parseFloat(marketData.highPrice),
-        low24h: parseFloat(marketData.lowPrice),
+        volume: volumeUSD,
+        high24h: parseFloat(marketData.highPrice) || price,
+        low24h: parseFloat(marketData.lowPrice) || price,
         volatility
       }
     };
@@ -174,7 +212,7 @@ class StrategyManager {
     return {
       signal,
       confidence,
-      reasoning: `RSI and MACD convergence with ${isHighVolume ? 'high' : 'moderate'} volume confirmation`,
+      reasoning: `RSI and MACD convergence with ${isHighVolume ? 'high' : 'moderate'} volume confirmation. Price validation passed.`,
       metadata: {
         strategy: 'ticklet-alpha',
         timestamp: new Date().toISOString(),
@@ -184,16 +222,33 @@ class StrategyManager {
   }
 
   private async executeBullStrategy(symbol: string, marketData: any): Promise<StrategyResult> {
-    // Bull Strategy - Based on your comprehensive technical analysis
+    // Parse and validate all numeric values with zero-value checks
     const price = parseFloat(marketData.lastPrice);
-    const priceChange = parseFloat(marketData.priceChangePercent);
-    const volume = parseFloat(marketData.volume) * price;
+    const priceChange = parseFloat(marketData.priceChangePercent) || 0;
+    const volume = parseFloat(marketData.volume) || 0;
     const high24h = parseFloat(marketData.highPrice);
     const low24h = parseFloat(marketData.lowPrice);
     
+    // CRITICAL: Validate price data to prevent zero values
+    if (!price || price <= 0 || isNaN(price)) {
+      console.error(`[WARN] Zero/invalid price in Bull Strategy for ${symbol}: ${marketData.lastPrice}`);
+      throw new Error(`Invalid price data for ${symbol}: Cannot generate signal with zero price`);
+    }
+    
+    if (!high24h || !low24h || high24h <= 0 || low24h <= 0) {
+      console.error(`[WARN] Invalid high/low for ${symbol}: High=${high24h}, Low=${low24h}`);
+      throw new Error(`Invalid price range data for ${symbol}`);
+    }
+    
+    // Calculate volume in USD with validation
+    const volumeUSD = volume * price;
+    if (volumeUSD <= 0) {
+      console.warn(`[WARN] Zero volume detected for ${symbol}: Volume=${volume}, Price=${price}`);
+    }
+    
     // === Technical Analysis ===
     const volatility = Math.abs(priceChange);
-    const atr = (high24h - low24h) / price * 100; // Simplified ATR
+    const atr = ((high24h - low24h) / price) * 100; // Simplified ATR
     
     // === RSI Logic (simplified) ===
     const rsiOversold = priceChange < -3; // RSI < 25 equivalent
@@ -206,8 +261,8 @@ class StrategyManager {
     
     // === Volume Analysis ===
     const volThreshold = 100000; // $100k threshold from your strategy
-    const validVolume = volume > volThreshold;
-    const volSpike = volume > volThreshold * 1.5; // Volume spike detection
+    const validVolume = volumeUSD > volThreshold;
+    const volSpike = volumeUSD > volThreshold * 1.5; // Volume spike detection
     
     // === EMA Alignment (trend direction) ===
     const emaAlign = priceChange > 0; // Simplified: price above EMA20 > EMA50
@@ -292,32 +347,41 @@ class StrategyManager {
       confidence = Math.max(0.5, confidence * 0.7); // Reduce confidence for default signals
     }
     
-    // === Dynamic Targets and Stop Loss ===
+    // === Dynamic Targets and Stop Loss with Zero-Value Protection ===
     const slDynamic = riskPct; // Your dynamic SL percentage
+    const atrBuffer = Math.max(atr, 1); // Minimum 1% ATR for micro-priced tokens
     
-    const targets = signalType === 'BUY' 
-      ? [
-          price * (1 + atr/100 * 1.5), // T1: 1.5x ATR
-          price * (1 + atr/100 * 3),   // T2: 3x ATR  
-          price * (1 + atr/100 * 5)    // T3: 5x ATR
-        ]
-      : [
-          price * (1 - atr/100 * 1.5), // T1: 1.5x ATR
-          price * (1 - atr/100 * 3),   // T2: 3x ATR
-          price * (1 - atr/100 * 5)    // T3: 5x ATR
-        ];
+    let targets: number[];
+    let stopLoss: number;
     
-    // Swing-based stop loss
-    const swingBasedSL = signalType === 'BUY' 
-      ? low24h - (price * slDynamic) 
-      : high24h + (price * slDynamic);
+    if (signalType === 'BUY') {
+      targets = [
+        Math.max(price * (1 + atrBuffer/100 * 1.5), price * 1.02), // T1: 1.5x ATR or 2%
+        Math.max(price * (1 + atrBuffer/100 * 3), price * 1.05),   // T2: 3x ATR or 5%
+        Math.max(price * (1 + atrBuffer/100 * 5), price * 1.08)    // T3: 5x ATR or 8%
+      ];
+      stopLoss = Math.max(low24h - (price * slDynamic), price * (1 - slDynamic));
+    } else {
+      targets = [
+        Math.min(price * (1 - atrBuffer/100 * 1.5), price * 0.98), // T1: 1.5x ATR or 2%
+        Math.min(price * (1 - atrBuffer/100 * 3), price * 0.95),   // T2: 3x ATR or 5%
+        Math.min(price * (1 - atrBuffer/100 * 5), price * 0.92)    // T3: 5x ATR or 8%
+      ];
+      stopLoss = Math.min(high24h + (price * slDynamic), price * (1 + slDynamic));
+    }
     
-    const stopLoss = swingBasedSL;
+    // Validate that all calculated values are valid
+    if (targets.some(t => t <= 0 || isNaN(t)) || stopLoss <= 0 || isNaN(stopLoss)) {
+      console.error(`[WARN] Invalid target/SL calculation for ${symbol}: Targets=${targets}, SL=${stopLoss}`);
+      throw new Error(`Invalid signal calculation for ${symbol}`);
+    }
     
     // === Capital Logic ===
     const accountEquity = 10000; // Your base capital
     const tradableCap = accountEquity * 0.5; // 50% of equity
     const usedCapital = tradableCap * riskPct;
+    
+    console.log(`[StrategyManager] Bull Strategy signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${(confidence * 100).toFixed(1)}%`);
     
     const signal = {
       id: `bull-signal-${Date.now()}`,
@@ -337,7 +401,7 @@ class StrategyManager {
       usedCapital,
       marketData: {
         priceChange,
-        volume,
+        volume: volumeUSD,
         high24h,
         low24h,
         volatility,
@@ -360,6 +424,7 @@ class StrategyManager {
     } else {
       reasoning += `Trend following signal based on momentum and volume`;
     }
+    reasoning += `. Price validation passed.`;
 
     return {
       signal,
@@ -375,22 +440,40 @@ class StrategyManager {
 
   private async executeJamBotStrategy(symbol: string, marketData: any): Promise<StrategyResult> {
     try {
+      // Parse and validate all numeric values with zero-value checks
       const price = parseFloat(marketData.lastPrice);
-      const priceChange = parseFloat(marketData.priceChangePercent);
-      const volume = parseFloat(marketData.volume) * price;
+      const priceChange = parseFloat(marketData.priceChangePercent) || 0;
+      const volume = parseFloat(marketData.volume) || 0;
       const high24h = parseFloat(marketData.highPrice);
       const low24h = parseFloat(marketData.lowPrice);
       
+      // CRITICAL: Validate price data to prevent zero values
+      if (!price || price <= 0 || isNaN(price)) {
+        console.error(`[WARN] Zero/invalid price in Jam Bot for ${symbol}: ${marketData.lastPrice}`);
+        throw new Error(`Invalid price data for ${symbol}: Cannot generate signal with zero price`);
+      }
+      
+      if (!high24h || !low24h || high24h <= 0 || low24h <= 0) {
+        console.error(`[WARN] Invalid high/low for ${symbol}: High=${high24h}, Low=${low24h}`);
+        throw new Error(`Invalid price range data for ${symbol}`);
+      }
+      
+      // Calculate volume in USD with validation
+      const volumeUSD = volume * price;
+      if (volumeUSD <= 0) {
+        console.warn(`[WARN] Zero volume detected for ${symbol}: Volume=${volume}, Price=${price}`);
+      }
+      
       // Simplified indicator calculations
-      const atr = (high24h - low24h) / price * 100;
+      const atr = ((high24h - low24h) / price) * 100;
       const rsi = Math.max(0, Math.min(100, 50 - (priceChange * 2))); // Simplified RSI
       const macd = priceChange > 0 ? Math.abs(priceChange) * 0.1 : -Math.abs(priceChange) * 0.1;
       const ema20 = price * (1 + priceChange * 0.01);
       const ema50 = price * (1 + priceChange * 0.005);
       
       // Volume spike detection (20-period average simulation)
-      const volumeAvg = volume / 1.5; // Simulate average
-      const volumeSpike = volume > volumeAvg * 2;
+      const volumeAvg = volumeUSD / 1.5; // Simulate average
+      const volumeSpike = volumeUSD > volumeAvg * 2;
       
       // Jam Bot signal conditions
       const longCondition = (
@@ -417,13 +500,23 @@ class StrategyManager {
         // Clamp confidence between 60-95%
         confidence = Math.min(Math.max(confidence, 60), 95);
 
-        // ATR-based targets and stop loss
-        const stopLoss = price - (1.5 * atr * price / 100);
+        // ATR-based targets and stop loss with zero-value protection
+        const atrBuffer = Math.max(atr, 1); // Minimum 1% ATR for micro-priced tokens
+        
+        const stopLoss = Math.max(price - (1.5 * atrBuffer * price / 100), price * 0.97);
         const targets = [
-          price + (0.5 * atr * price / 100), // T1: 0.5x ATR
-          price + (1.0 * atr * price / 100), // T2: 1.0x ATR  
-          price + (1.5 * atr * price / 100)  // T3: 1.5x ATR
+          Math.max(price + (0.5 * atrBuffer * price / 100), price * 1.02), // T1: 0.5x ATR or 2%
+          Math.max(price + (1.0 * atrBuffer * price / 100), price * 1.05), // T2: 1.0x ATR or 5%
+          Math.max(price + (1.5 * atrBuffer * price / 100), price * 1.08)  // T3: 1.5x ATR or 8%
         ];
+        
+        // Validate that all calculated values are valid
+        if (targets.some(t => t <= 0 || isNaN(t)) || stopLoss <= 0 || isNaN(stopLoss)) {
+          console.error(`[WARN] Invalid target/SL calculation for ${symbol}: Targets=${targets}, SL=${stopLoss}`);
+          throw new Error(`Invalid signal calculation for ${symbol}`);
+        }
+        
+        console.log(`[StrategyManager] Jam Bot signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${confidence.toFixed(1)}%`);
 
         const signal = {
           id: `jam-bot-signal-${Date.now()}`,
@@ -441,7 +534,7 @@ class StrategyManager {
           strategyName: 'Jam Bot Strategy',
           marketData: {
             priceChange,
-            volume,
+            volume: volumeUSD,
             high24h,
             low24h,
             rsi,
@@ -455,7 +548,7 @@ class StrategyManager {
         return {
           signal,
           confidence: confidence / 100,
-          reasoning: `🚀 LONG Setup - RSI oversold (${rsi.toFixed(2)}), MACD bullish (${macd.toFixed(4)}), EMA alignment confirmed, volume spike detected. AI confidence: ${confidence.toFixed(1)}%, Telegram sentiment: ${telegramScore > 0 ? '+' : ''}${telegramScore.toFixed(1)}`,
+          reasoning: `🚀 LONG Setup - RSI oversold (${rsi.toFixed(2)}), MACD bullish (${macd.toFixed(4)}), EMA alignment confirmed, volume spike detected. AI confidence: ${confidence.toFixed(1)}%, Telegram sentiment: ${telegramScore > 0 ? '+' : ''}${telegramScore.toFixed(1)}. Price validation passed.`,
           metadata: {
             strategy: 'jam-bot',
             timestamp: new Date().toISOString(),
@@ -467,7 +560,7 @@ class StrategyManager {
       return {
         signal: null,
         confidence: 0,
-        reasoning: `No Jam Bot signal conditions met - RSI: ${rsi.toFixed(2)}, MACD: ${macd.toFixed(4)}, Volume spike: ${volumeSpike ? 'Yes' : 'No'}`,
+        reasoning: `No Jam Bot signal conditions met - RSI: ${rsi.toFixed(2)}, MACD: ${macd.toFixed(4)}, Volume spike: ${volumeSpike ? 'Yes' : 'No'}. Price validation passed.`,
         metadata: {
           strategy: 'jam-bot',
           timestamp: new Date().toISOString(),
@@ -479,7 +572,7 @@ class StrategyManager {
       return {
         signal: null,
         confidence: 0,
-        reasoning: 'Jam Bot Strategy execution failed',
+        reasoning: `Jam Bot Strategy execution failed: ${error.message}`,
         metadata: {
           strategy: 'jam-bot',
           timestamp: new Date().toISOString(),

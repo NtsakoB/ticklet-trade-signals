@@ -119,26 +119,52 @@ class TelegramService {
     const typeEmoji = signal.type.toLowerCase().includes('long') || signal.type.toLowerCase() === 'buy' ? '🚀' : '🔻';
     const confidenceEmoji = signal.confidence >= 0.8 ? '🧠' : signal.confidence >= 0.6 ? '🤔' : '⚠️';
     
+    // Validate signal data to prevent zero values in Telegram messages
+    if (!signal.entryPrice || signal.entryPrice <= 0) {
+      console.error(`[WARN] Zero entry price in Telegram signal for ${signal.symbol}: ${signal.entryPrice}`);
+      throw new Error(`Invalid signal data: Zero entry price for ${signal.symbol}`);
+    }
+    
+    if (!signal.stopLoss || signal.stopLoss <= 0) {
+      console.error(`[WARN] Zero stop loss in Telegram signal for ${signal.symbol}: ${signal.stopLoss}`);
+      throw new Error(`Invalid signal data: Zero stop loss for ${signal.symbol}`);
+    }
+    
     let message = `${typeEmoji} <b>${signal.type.toUpperCase()} Setup</b> | #${signal.symbol}\n`;
     message += `${confidenceEmoji} <b>Confidence:</b> ${(signal.confidence * 100).toFixed(2)}%\n`;
     message += `📊 <b>Strategy:</b> ${signal.strategyName}\n`;
     
+    // Format prices with appropriate decimal places for micro-priced tokens
+    const getDecimalPlaces = (price: number) => price < 1 ? 6 : price < 100 ? 4 : 2;
+    const entryDecimals = getDecimalPlaces(signal.entryPrice);
+    const slDecimals = getDecimalPlaces(signal.stopLoss);
+    
     if (signal.entryRange) {
-      message += `🎯 <b>Entry:</b> ${signal.entryRange.min.toFixed(4)} → ${signal.entryRange.max.toFixed(4)}\n`;
+      const rangeDecimals = getDecimalPlaces(signal.entryRange.min);
+      message += `🎯 <b>Entry:</b> ${signal.entryRange.min.toFixed(rangeDecimals)} → ${signal.entryRange.max.toFixed(rangeDecimals)}\n`;
     } else {
-      message += `🎯 <b>Entry:</b> ${signal.entryPrice.toFixed(4)}\n`;
+      message += `🎯 <b>Entry:</b> ${signal.entryPrice.toFixed(entryDecimals)}\n`;
     }
     
     if (signal.targets && signal.targets.length > 0) {
-      const targetStr = signal.targets.map((t, i) => `🎯 ${t.toFixed(4)}`).join(', ');
-      message += `<b>Targets:</b> ${targetStr}\n`;
+      // Filter out any zero/invalid targets
+      const validTargets = signal.targets.filter(t => t > 0 && !isNaN(t));
+      if (validTargets.length > 0) {
+        const targetStr = validTargets.map((t, i) => {
+          const decimals = getDecimalPlaces(t);
+          return `🎯 ${t.toFixed(decimals)}`;
+        }).join(', ');
+        message += `<b>Targets:</b> ${targetStr}\n`;
+      } else {
+        message += `🎯 <b>Target:</b> ${signal.takeProfit.toFixed(getDecimalPlaces(signal.takeProfit))}\n`;
+      }
     } else {
-      message += `🎯 <b>Target:</b> ${signal.takeProfit.toFixed(4)}\n`;
+      message += `🎯 <b>Target:</b> ${signal.takeProfit.toFixed(getDecimalPlaces(signal.takeProfit))}\n`;
     }
     
-    message += `🛑 <b>Stop:</b> ${signal.stopLoss.toFixed(4)}\n`;
+    message += `🛑 <b>Stop:</b> ${signal.stopLoss.toFixed(slDecimals)}\n`;
     
-    if (signal.leverage) {
+    if (signal.leverage && signal.leverage > 0) {
       message += `⚡ <b>Leverage:</b> ${signal.leverage}x\n`;
     }
     
@@ -152,28 +178,49 @@ class TelegramService {
       return { success: false, error: 'Telegram not enabled' };
     }
 
+    // Validate signal data before sending to prevent zero values
+    if (!signal.entryPrice || signal.entryPrice <= 0) {
+      console.error(`[TelegramService] Rejecting signal with zero entry price for ${signal.symbol}: ${signal.entryPrice}`);
+      return { success: false, error: 'Invalid signal: Zero entry price' };
+    }
+    
+    if (!signal.stopLoss || signal.stopLoss <= 0) {
+      console.error(`[TelegramService] Rejecting signal with zero stop loss for ${signal.symbol}: ${signal.stopLoss}`);
+      return { success: false, error: 'Invalid signal: Zero stop loss' };
+    }
+    
+    if (signal.targets && signal.targets.some(t => t <= 0 || isNaN(t))) {
+      console.error(`[TelegramService] Rejecting signal with invalid targets for ${signal.symbol}: ${signal.targets}`);
+      return { success: false, error: 'Invalid signal: Zero or invalid targets' };
+    }
+
     // Check for duplicates
     const signalHash = this.generateSignalHash(signal);
     if (this.sentSignalsHash.has(signalHash)) {
       return { success: false, error: 'Duplicate signal prevented' };
     }
 
-    const message = this.formatSignalMessage(signal);
-    const result = await this.sendMessage(message);
+    try {
+      const message = this.formatSignalMessage(signal);
+      const result = await this.sendMessage(message);
 
-    if (result.success) {
-      // Add to sent signals to prevent duplicates
-      this.sentSignalsHash.add(signalHash);
-      
-      // Keep only last 100 signal hashes to prevent memory buildup
-      if (this.sentSignalsHash.size > 100) {
-        const hashes = Array.from(this.sentSignalsHash);
-        this.sentSignalsHash.clear();
-        hashes.slice(-50).forEach(hash => this.sentSignalsHash.add(hash));
+      if (result.success) {
+        // Add to sent signals to prevent duplicates
+        this.sentSignalsHash.add(signalHash);
+        
+        // Keep only last 100 signal hashes to prevent memory buildup
+        if (this.sentSignalsHash.size > 100) {
+          const hashes = Array.from(this.sentSignalsHash);
+          this.sentSignalsHash.clear();
+          hashes.slice(-50).forEach(hash => this.sentSignalsHash.add(hash));
+        }
       }
-    }
 
-    return result;
+      return result;
+    } catch (error) {
+      console.error(`[TelegramService] Error formatting/sending signal for ${signal.symbol}:`, error);
+      return { success: false, error: `Signal formatting failed: ${error.message}` };
+    }
   }
 
   isEnabled(): boolean {

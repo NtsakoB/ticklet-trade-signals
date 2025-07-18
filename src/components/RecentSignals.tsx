@@ -37,7 +37,11 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Entry: ${signal.entryPrice} • Stop: ${signal.stopLoss}
+                  Entry: {signal.entryPrice > 0 
+                    ? `$${signal.entryPrice.toFixed(signal.entryPrice < 1 ? 6 : 4)}` 
+                    : '—'} • Stop: {signal.stopLoss > 0 
+                    ? `$${signal.stopLoss.toFixed(signal.stopLoss < 1 ? 6 : 4)}` 
+                    : '—'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(signal.timestamp), { addSuffix: true })}

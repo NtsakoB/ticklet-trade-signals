@@ -37,12 +37,15 @@ class BacktestService {
         
         const batchData = data.map((candle: any[]) => ({
           time: candle[0],
-          open: parseFloat(candle[1]),
-          high: parseFloat(candle[2]),
-          low: parseFloat(candle[3]),
-          close: parseFloat(candle[4]),
-          volume: parseFloat(candle[5])
-        }));
+          open: parseFloat(candle[1]) || 0,
+          high: parseFloat(candle[2]) || 0,
+          low: parseFloat(candle[3]) || 0,
+          close: parseFloat(candle[4]) || 0,
+          volume: parseFloat(candle[5]) || 0
+        })).filter(candle => 
+          // Filter out any candles with zero/invalid prices
+          candle.open > 0 && candle.high > 0 && candle.low > 0 && candle.close > 0
+        );
         
         allData.push(...batchData);
         currentStart = batchData[batchData.length - 1].time + intervalMs;
@@ -85,6 +88,12 @@ class BacktestService {
       const recentPrices = data.slice(i - period, i);
       const avgPrice = recentPrices.reduce((sum, p) => sum + p.close, 0) / period;
       const currentPrice = data[i].close;
+      
+      // Skip if any price is zero or invalid
+      if (!currentPrice || currentPrice <= 0 || !avgPrice || avgPrice <= 0) {
+        continue;
+      }
+      
       const priceChange = ((currentPrice - avgPrice) / avgPrice) * 100;
       
       if (Math.abs(priceChange) > 2) {
