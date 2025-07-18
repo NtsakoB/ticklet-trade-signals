@@ -430,6 +430,7 @@ const SignalGenerator = ({
             confidence: signal.confidence,
             leverage: signal.leverage || 1,
             timestamp: new Date().toISOString()
+            // NOTE: anomaly_score is intentionally excluded from Telegram messages
           };
           
           const telegramResult = await telegramService.sendSignal(telegramSignal);
@@ -723,10 +724,18 @@ const SignalGenerator = ({
                   <span className="font-medium">{lastSignal.leverage}x</span>
                 </div>
                 {lastSignal.marketData && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Volatility:</span>
-                    <span className="font-medium">{lastSignal.marketData.volatility.toFixed(2)}%</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Volatility:</span>
+                      <span className="font-medium">{lastSignal.marketData.volatility.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Anomaly Score:</span>
+                      <Badge variant="outline" className="text-amber-400 border-amber-400/30">
+                        {lastSignal.anomaly_score ?? 0}
+                      </Badge>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

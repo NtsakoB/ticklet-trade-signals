@@ -105,6 +105,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                   <TableHead className="hidden lg:table-cell">Targets</TableHead>
                   <TableHead className="hidden lg:table-cell">Stop Loss</TableHead>
                   <TableHead className="hidden md:table-cell">Confidence</TableHead>
+                  <TableHead className="hidden lg:table-cell">Anomaly</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -137,6 +138,11 @@ export function SignalTable({ signals }: SignalTableProps) {
                           ></div>
                         </div>
                         <span className="text-xs text-gray-400">{(signal.confidence * 100).toFixed(0)}%</span>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <Badge variant="outline" className="text-amber-400 border-amber-400/30">
+                          {signal.anomaly_score ?? 0}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
@@ -197,7 +203,7 @@ export function SignalTable({ signals }: SignalTableProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={10} className="h-24 text-center">
                       No signals found.
                     </TableCell>
                   </TableRow>

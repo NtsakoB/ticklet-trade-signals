@@ -50,6 +50,7 @@ export const generateMockSignals = (count: number): TradeSignal[] => {
       stopLoss,
       confidence: parseFloat((Math.random() * 0.5 + 0.5).toFixed(2)), // 0.5 - 1.0
       anomaly: Math.random() > 0.8, // 20% chance of anomaly
+      anomaly_score: Math.floor(Math.random() * 100), // 0-100 anomaly score
       timestamp,
       status,
       exchange: exchanges[Math.floor(Math.random() * exchanges.length)],

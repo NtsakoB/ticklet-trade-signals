@@ -1,5 +1,6 @@
 import { Strategy, StrategyType, StrategyConfig, StrategyResult } from '@/types/strategy';
 import { TradeSignal } from '@/types';
+import { calculateAnomalyScore, generateQuickAnomalyScore } from './anomalyCalculator';
 
 export const DEFAULT_STRATEGIES: Record<StrategyType, Strategy> = {
   'ticklet-alpha': {
@@ -186,6 +187,14 @@ class StrategyManager {
     
     console.log(`[StrategyManager] Ticklet Alpha signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${(confidence * 100).toFixed(1)}%`);
     
+    // Calculate anomaly score for ML tracking (does NOT affect trading logic)
+    const anomalyScore = calculateAnomalyScore({
+      symbol,
+      volume: volumeUSD,
+      priceChange,
+      volatility
+    });
+
     const signal = {
       id: `signal-${Date.now()}`,
       symbol,
@@ -194,6 +203,8 @@ class StrategyManager {
       targets,
       stopLoss,
       confidence,
+      anomaly: confidence > 0.85 || Math.random() > 0.9,
+      anomaly_score: anomalyScore, // For ML tracking only
       timestamp: new Date().toISOString(),
       source: 'strategy',
       leverage,
@@ -381,7 +392,16 @@ class StrategyManager {
     const tradableCap = accountEquity * 0.5; // 50% of equity
     const usedCapital = tradableCap * riskPct;
     
-    console.log(`[StrategyManager] Bull Strategy signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${(confidence * 100).toFixed(1)}%`);
+    // Calculate anomaly score for ML tracking (does NOT affect trading logic)
+    const anomalyScore = calculateAnomalyScore({
+      symbol,
+      volume: volumeUSD,
+      rsi: rsiOversold ? 25 : rsiOverbought ? 80 : 50,
+      priceChange,
+      volatility
+    });
+
+    console.log(`[StrategyManager] Bull Strategy signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${(confidence * 100).toFixed(1)}%, Anomaly=${anomalyScore}`);
     
     const signal = {
       id: `bull-signal-${Date.now()}`,
@@ -391,6 +411,8 @@ class StrategyManager {
       targets,
       stopLoss,
       confidence,
+      anomaly: confidence > 0.85 || anomalyScore > 70,
+      anomaly_score: anomalyScore, // For ML tracking only
       timestamp: new Date().toISOString(),
       source: 'strategy',
       leverage,
@@ -516,7 +538,17 @@ class StrategyManager {
           throw new Error(`Invalid signal calculation for ${symbol}`);
         }
         
-        console.log(`[StrategyManager] Jam Bot signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${confidence.toFixed(1)}%`);
+        // Calculate anomaly score for ML tracking (does NOT affect trading logic)
+        const anomalyScore = calculateAnomalyScore({
+          symbol,
+          volume: volumeUSD,
+          rsi,
+          macd,
+          priceChange,
+          volatility: atr
+        });
+
+        console.log(`[StrategyManager] Jam Bot signal for ${symbol}: Entry=${price}, Targets=[${targets.map(t => t.toFixed(6)).join(', ')}], SL=${stopLoss.toFixed(6)}, Confidence=${confidence.toFixed(1)}%, Anomaly=${anomalyScore}`);
 
         const signal = {
           id: `jam-bot-signal-${Date.now()}`,
@@ -526,6 +558,8 @@ class StrategyManager {
           targets,
           stopLoss,
           confidence: confidence / 100,
+          anomaly: confidence > 85 || anomalyScore > 70,
+          anomaly_score: anomalyScore, // For ML tracking only
           timestamp: new Date().toISOString(),
           source: 'strategy',
           leverage: Math.min(5, Math.max(2, Math.floor(confidence / 20))),

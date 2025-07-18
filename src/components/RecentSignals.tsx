@@ -41,7 +41,7 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
                     ? `$${signal.entryPrice.toFixed(signal.entryPrice < 1 ? 6 : 4)}` 
                     : '—'} • Stop: {signal.stopLoss > 0 
                     ? `$${signal.stopLoss.toFixed(signal.stopLoss < 1 ? 6 : 4)}` 
-                    : '—'}
+                    : '—'} • Anomaly: {signal.anomaly_score ?? 0}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(signal.timestamp), { addSuffix: true })}

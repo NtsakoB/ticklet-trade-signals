@@ -8,6 +8,7 @@ export interface TradeSignal {
   stopLoss: number;
   confidence: number;
   anomaly: boolean;
+  anomaly_score?: number; // 0-100 numerical anomaly score for ML tracking
   timestamp: string;
   status: 'active' | 'executed' | 'cancelled' | 'completed';
   exchange: 'Bybit' | 'Binance' | 'Other';

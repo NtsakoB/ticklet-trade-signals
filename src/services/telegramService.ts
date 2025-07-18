@@ -194,14 +194,18 @@ class TelegramService {
       return { success: false, error: 'Invalid signal: Zero or invalid targets' };
     }
 
+    // Create a copy of signal without anomaly_score for Telegram (excluded as per requirements)
+    const telegramSignal = { ...signal };
+    delete (telegramSignal as any).anomaly_score; // Exclude anomaly score from Telegram message
+
     // Check for duplicates
-    const signalHash = this.generateSignalHash(signal);
+    const signalHash = this.generateSignalHash(telegramSignal);
     if (this.sentSignalsHash.has(signalHash)) {
       return { success: false, error: 'Duplicate signal prevented' };
     }
 
     try {
-      const message = this.formatSignalMessage(signal);
+      const message = this.formatSignalMessage(telegramSignal);
       const result = await this.sendMessage(message);
 
       if (result.success) {
