@@ -1,10 +1,11 @@
-from freqtrade.strategy import IStrategy, DecimalParameter, IntParameter, BooleanParameter
+from freqtrade.strategy import DecimalParameter, IntParameter, BooleanParameter
 import talib.abstract as ta
 import pandas as pd
 from pandas import DataFrame
+from ticklet_ai.strategies.base_strategy import BaseStrategy
 
 
-class BullStrategy(IStrategy):
+class BullStrategy(BaseStrategy):
     """
     Bull Strategy with multi-timeframe support and AI-ready indicator collection:
     - Optimized for bullish market conditions with EMA, RSI, MACD, and ATR
@@ -92,85 +93,62 @@ class BullStrategy(IStrategy):
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        AI-ready entry trend with confidence-based filtering for bull market conditions.
+        Enhanced entry trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping entry trend population.")
             return dataframe
+
+        # Get multi-timeframe signals
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
 
         # Core bull market entry conditions
         base_conditions = (
             (dataframe['close'] > dataframe['ema_short']) &
             (dataframe['ema_short'] > dataframe['ema_long']) &
             (dataframe['rsi'] < self.rsi_buy_threshold.value) &
-            (dataframe['confidence'] >= self.confidence_threshold.value)
+            (dataframe['bull_strength'] >= self.confidence_threshold.value)
         )
 
-        dataframe['enter_long'] = base_conditions
-
-        # Enhanced MACD filter for stronger confirmation
+        # Optional MACD filter
         if self.macd_enabled.value:
-            dataframe['enter_long'] &= (
-                (dataframe['macd'] > dataframe['macdsignal']) &
-                (dataframe['macdhist'] > 0)
-            )
-            self.logger.debug("MACD filtering applied with bull market confirmation.")
+            base_conditions &= (dataframe['macd'] > dataframe['macdsignal'])
 
-        # ATR filter for optimal volatility conditions
+        # Optional ATR volatility filter
         if self.atr_enabled.value:
-            dataframe['enter_long'] &= (dataframe['atr_normalized'] > self.atr_threshold.value / 100)
-            self.logger.debug("ATR volatility filtering applied.")
+            base_conditions &= (dataframe['atr'] > self.atr_threshold.value)
 
-        # Volume confirmation if available
-        if 'volume_ratio' in dataframe.columns:
-            dataframe['enter_long'] &= (dataframe['volume_ratio'] > 1.2)
+        # Volume confirmation
+        base_conditions &= (dataframe['volume_ratio'] > 1.0)
 
-        self.logger.debug(f"Bull entry signals with confidence >= {self.confidence_threshold.value}: {dataframe['enter_long'].sum()}")
-        return dataframe
+        # Apply AI decision weighting
+        dataframe['enter_long'] = base_conditions & (ai_decision['buy'] > 0.6)
+
+        return super().populate_entry_trend(dataframe, metadata)
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Confidence-based exit logic optimized for bull market protection.
+        Enhanced exit trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping exit trend population.")
             return dataframe
 
-        # Exit conditions with confidence consideration
-        dataframe['exit_long'] = (
+        # Get multi-timeframe signals for exit
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
+
+        # Exit when bullish momentum weakens
+        exit_conditions = (
             (dataframe['rsi'] > self.rsi_sell_threshold.value) |
             (dataframe['close'] < dataframe['ema_short']) |
-            (dataframe['confidence'] < (self.confidence_threshold.value * 0.7))
+            (dataframe['bull_strength'] < self.confidence_threshold.value)
         )
 
-        self.logger.debug(f"Bull exit signals generated: {dataframe['exit_long'].sum()}")
-        return dataframe
+        # Apply AI decision weighting for exits
+        dataframe['exit_long'] = exit_conditions | (ai_decision['sell'] > 0.7)
 
-    def custom_position_size(self, pair: str, current_time: pd.Timestamp, proposed_amount: float, **kwargs) -> float:
-        """
-        Dynamic position sizing based on bull market confidence and risk management.
-        """
-        try:
-            total_balance = self.wallets.get_total_balance()
-            open_positions_value = sum([trade.stake_amount for trade in self.trades])
-
-            # Bull market allows higher allocation but still risk-managed
-            max_allocation = 0.6  # 60% max for bull strategy
-            available_balance = max(0, (total_balance * max_allocation) - open_positions_value)
-            
-            if available_balance <= 0:
-                self.logger.warning("Maximum bull strategy allocation reached.")
-                return 0.0
-
-            # Risk per trade based on total balance (8% for bull markets)
-            risk_per_trade = total_balance * 0.08
-            stoploss_distance = abs(self.stoploss)
-            position_size = risk_per_trade / stoploss_distance
-
-            final_size = min(position_size, proposed_amount, available_balance)
-            self.logger.debug(f"Bull strategy position size: {final_size} (Risk: {risk_per_trade})")
-            return final_size
-            
-        except Exception as e:
-            self.logger.error(f"Position sizing error: {e}")
-            return proposed_amount * 0.1  # Conservative fallback
+        return super().populate_exit_trend(dataframe, metadata)

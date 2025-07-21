@@ -1,10 +1,11 @@
-from freqtrade.strategy import IStrategy, DecimalParameter, IntParameter, BooleanParameter
+from freqtrade.strategy import DecimalParameter, IntParameter, BooleanParameter
 import talib.abstract as ta
 import pandas as pd
 from pandas import DataFrame
+from ticklet_ai.strategies.base_strategy import BaseStrategy
 
 
-class TradingDashboardStrategy(IStrategy):
+class TradingDashboardStrategy(BaseStrategy):
     """
     Trading Dashboard Strategy - Frontend Visualization Mirror of Ticklet Alpha:
     - Short trades are allowed only with confidence >= 70% on sell signals.
@@ -61,86 +62,69 @@ class TradingDashboardStrategy(IStrategy):
 
         return dataframe
 
+
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Populate entry trend signals in the dataframe for long and short trades.
+        Enhanced entry trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping entry trend population.")
             return dataframe
 
-        # Long entry conditions
-        dataframe['enter_long'] = (
+        # Get multi-timeframe signals
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
+
+        # Base entry conditions
+        base_long = (
             (dataframe['close'] > dataframe['ema_short']) &
             (dataframe['ema_short'] > dataframe['ema_long']) &
             (dataframe['rsi'] < self.rsi_buy_threshold.value)
         )
 
-        # Short entry conditions (only with confidence >= 70%)
-        dataframe['enter_short'] = (
+        base_short = (
             (dataframe['close'] < dataframe['ema_short']) &
             (dataframe['ema_short'] < dataframe['ema_long']) &
             (dataframe['confidence'] >= self.confidence_threshold.value) &
             (dataframe['rsi'] > self.rsi_sell_threshold.value)
         )
 
-        # Debug: Log the number of entry signals
-        self.logger.debug(f"Long entry signals: {dataframe['enter_long'].sum()} | Short entry signals: {dataframe['enter_short'].sum()}")
-        return dataframe
+        # Apply AI weighting to entry signals
+        dataframe['enter_long'] = base_long & (ai_decision['buy'] > 0.6)
+        dataframe['enter_short'] = base_short & (ai_decision['sell'] > 0.6)
+
+        return super().populate_entry_trend(dataframe, metadata)
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Populate exit trend signals in the dataframe for long and short trades.
+        Enhanced exit trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping exit trend population.")
             return dataframe
 
-        # Long exit conditions
-        dataframe['exit_long'] = (
+        # Get multi-timeframe signals for exit
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
+
+        # Base exit conditions
+        base_long_exit = (
             (dataframe['rsi'] > self.rsi_sell_threshold.value) |
             (dataframe['close'] < dataframe['ema_short'])
         )
 
-        # Short exit conditions (only if confidence >= 70%)
-        dataframe['exit_short'] = (
+        base_short_exit = (
             (dataframe['rsi'] < self.rsi_buy_threshold.value) |
             ((dataframe['close'] > dataframe['ema_short']) & (dataframe['confidence'] >= self.confidence_threshold.value))
         )
 
-        # Debug: Log the number of exit signals
-        self.logger.debug(f"Long exit signals: {dataframe['exit_long'].sum()} | Short exit signals: {dataframe['exit_short'].sum()}")
-        return dataframe
+        # Apply AI weighting to exit signals
+        dataframe['exit_long'] = base_long_exit | (ai_decision['sell'] > 0.7)
+        dataframe['exit_short'] = base_short_exit | (ai_decision['buy'] > 0.7)
 
-    def custom_position_size(self, pair: str, current_time: pd.Timestamp, proposed_amount: float, **kwargs) -> float:
-        """
-        Dynamic position sizing based on risk and account balance:
-        - Risk up to 10% of total balance per trade.
-        - Ensure total open positions do not exceed 50% of total balance.
-        """
-        total_balance = self.wallets.get_total_balance(pair)
-        open_positions_value = self.wallets.get_open_position_value(pair)
-
-        # Limit total open positions to 50% of total balance
-        available_balance = max(0, (total_balance * 0.5) - open_positions_value)
-        if available_balance <= 0:
-            self.logger.warning("No available balance for new positions.")
-            return 0.0
-
-        # Risk-based position sizing (10% of total balance per trade)
-        risk_percentage = 0.10  # Dynamic risk percentage
-        risk_amount = total_balance * risk_percentage
-
-        # Calculate position size based on stoploss distance
-        stoploss_distance = abs(self.stoploss)
-        position_size = risk_amount / stoploss_distance
-
-        # Ensure position size does not exceed available balance or proposed amount
-        final_position_size = min(position_size, proposed_amount, available_balance)
-        self.logger.debug(
-            f"Dynamic position size calculated: {final_position_size} | Available balance: {available_balance} | Total balance: {total_balance}"
-        )
-        return final_position_size
+        return super().populate_exit_trend(dataframe, metadata)
 
     def get_signal_summary(self, dataframe: DataFrame) -> dict:
         """

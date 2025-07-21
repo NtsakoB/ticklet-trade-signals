@@ -1,11 +1,12 @@
-from freqtrade.strategy import IStrategy, DecimalParameter, IntParameter, BooleanParameter
+from freqtrade.strategy import DecimalParameter, IntParameter, BooleanParameter
 import talib.abstract as ta
 import pandas as pd
 from pandas import DataFrame
 from functools import reduce
+from ticklet_ai.strategies.base_strategy import BaseStrategy
 
 
-class JamBotStrategy(IStrategy):
+class JamBotStrategy(BaseStrategy):
     """
     JAM Bot Strategy: A momentum-based strategy using EMA, RSI, and optional MACD and ATR filtering.
     Adopts Ticklet Alpha ROI and stop-loss logic for bullish market conditions.
@@ -75,14 +76,19 @@ class JamBotStrategy(IStrategy):
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Populate entry trend signals in the dataframe.
+        Enhanced entry trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping entry trend population.")
             return dataframe
 
-        # Entry conditions
-        dataframe['enter_long'] = (
+        # Get multi-timeframe signals
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
+
+        # Base entry conditions
+        base_conditions = (
             (dataframe['close'] > dataframe['ema_short']) &
             (dataframe['ema_short'] > dataframe['ema_long']) &
             (dataframe['rsi'] < self.rsi_buy_threshold.value)
@@ -90,35 +96,40 @@ class JamBotStrategy(IStrategy):
 
         # MACD filter
         if self.macd_enabled.value:
-            dataframe['enter_long'] &= (
+            base_conditions &= (
                 (dataframe['macd'] > dataframe['macdsignal']) &
                 (dataframe['macdhist'] > 0)
             )
-            self.logger.debug("MACD filtering applied in entry conditions.")
 
         # ATR filter
         if self.atr_enabled.value:
-            dataframe['enter_long'] &= (dataframe['atr'] > self.atr_threshold.value)
-            self.logger.debug("ATR filtering applied in entry conditions.")
+            base_conditions &= (dataframe['atr'] > self.atr_threshold.value)
 
-        # Debug: Log the number of entry signals
-        self.logger.debug(f"Entry signals generated for {metadata.get('pair', 'unknown pair')}: {dataframe['enter_long'].sum()} signals.")
-        return dataframe
+        # Apply AI weighting to entry signals
+        dataframe['enter_long'] = base_conditions & (ai_decision['buy'] > 0.6)
+
+        return super().populate_entry_trend(dataframe, metadata)
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Populate exit trend signals in the dataframe.
+        Enhanced exit trend with multi-timeframe analysis and AI decision making.
         """
         if dataframe.empty:
             self.logger.warning("Dataframe is empty. Skipping exit trend population.")
             return dataframe
 
-        # Exit conditions
-        dataframe['exit_long'] = (
+        # Get multi-timeframe signals for exit
+        pair = metadata.get('pair', 'UNKNOWN')
+        mtf_signals = self.multi_timeframe_analysis(dataframe, pair)
+        ai_decision = self.ai_decision(mtf_signals)
+
+        # Base exit conditions
+        base_exit = (
             (dataframe['rsi'] > self.rsi_sell_threshold.value) |
             (dataframe['close'] < dataframe['ema_short'])
         )
 
-        # Debug: Log the number of exit signals
-        self.logger.debug(f"Exit signals generated for {metadata.get('pair', 'unknown pair')}: {dataframe['exit_long'].sum()} signals.")
-        return dataframe
+        # Apply AI weighting to exit signals
+        dataframe['exit_long'] = base_exit | (ai_decision['sell'] > 0.7)
+
+        return super().populate_exit_trend(dataframe, metadata)
