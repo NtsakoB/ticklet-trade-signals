@@ -6,7 +6,7 @@ Enables runtime strategy selection and configuration management.
 
 import logging
 from typing import Dict, Any, Optional, Type
-from strategies.ticklet_alpha import TickletAlpha
+from strategies.ticklet_alpha import TickletAlphaStrategy
 from strategies.bull_strategy import BullStrategy
 from strategies.jam_bot_strategy import JamBotStrategy
 from strategies.ai_predictor_strategy import AIPredictorStrategy
@@ -27,7 +27,7 @@ class StrategyRegistry:
     
     def __init__(self):
         self._strategies = {
-            TICKLET_ALPHA: TickletAlpha,
+            TICKLET_ALPHA: TickletAlphaStrategy,
             BULL: BullStrategy,
             JAM_BOT: JamBotStrategy,
             AI: AIPredictorStrategy,
