@@ -12,18 +12,26 @@ from strategies.jam_bot_strategy import JamBotStrategy
 from strategies.ai_predictor_strategy import AIPredictorStrategy
 from strategies.condition_strategy import ConditionStrategy
 
+# Initialize logger for diagnostic and operational tracing
 logger = logging.getLogger(__name__)
+
+# Define constants for strategy names to prevent hardcoded strings
+TICKLET_ALPHA = "ticklet_alpha"
+BULL = "bull"
+JAM_BOT = "jam_bot"
+AI = "ai"
+CONDITION = "condition"
 
 class StrategyRegistry:
     """Registry for managing available trading strategies"""
     
     def __init__(self):
         self._strategies = {
-            "ticklet_alpha": TickletAlpha,
-            "bull": BullStrategy,
-            "jam_bot": JamBotStrategy,
-            "ai": AIPredictorStrategy,
-            "condition": ConditionStrategy
+            TICKLET_ALPHA: TickletAlpha,
+            BULL: BullStrategy,
+            JAM_BOT: JamBotStrategy,
+            AI: AIPredictorStrategy,
+            CONDITION: ConditionStrategy
         }
         logger.info(f"Strategy registry initialized with {len(self._strategies)} strategies")
     
@@ -73,32 +81,33 @@ class StrategyRegistry:
 # Global strategy registry instance
 _strategy_registry = StrategyRegistry()
 
-def get_selected_strategy(name: str, config: Optional[Dict] = None):
+def get_selected_strategy(name: str, config: Optional[Dict] = None) -> object:
     """
-    Get an instance of the selected strategy.
-    
-    Args:
-        name: Strategy name
-        config: Optional configuration dictionary
-    
-    Returns:
-        Strategy instance
-    
-    Raises:
-        ValueError: If strategy name is not found
+    Retrieve the selected trading strategy class based on user or system input.
+
+    This function serves as the central entry point for loading strategy modules
+    dynamically, based on the strategy name selected via UI dropdown, API request,
+    or internal logic.
+
+    :param name: The lowercase string name representing the strategy
+    :param config: Optional configuration dictionary for strategy initialization
+    :return: An instance of the corresponding strategy class
+    :raises ValueError: If the strategy name is invalid or unsupported
+    :raises ImportError: If the strategy class fails to load (optional future-proofing)
     """
     strategy_class = _strategy_registry.get_strategy_class(name)
     
     if strategy_class is None:
         available = list(_strategy_registry.get_available_strategies().keys())
-        raise ValueError(f"Unknown strategy name: {name}. Available strategies: {available}")
+        logger.error(f"Unknown strategy name: '{name}'. Available strategies are: {', '.join(available)}")
+        raise ValueError(f"Unknown strategy name: '{name}'. Available strategies are: {', '.join(available)}")
     
     try:
         strategy_instance = strategy_class(config=config)
-        logger.info(f"Successfully created strategy instance: {name}")
+        logger.info(f"Successfully instantiated strategy: '{name}'")
         return strategy_instance
     except Exception as e:
-        logger.error(f"Failed to create strategy instance {name}: {e}")
+        logger.error(f"Failed to create strategy instance '{name}': {e}")
         raise
 
 def get_strategy_info(name: str) -> Dict[str, Any]:
