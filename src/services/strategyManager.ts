@@ -2,6 +2,13 @@ import { Strategy, StrategyType, StrategyConfig, StrategyResult } from '@/types/
 import { TradeSignal } from '@/types';
 import { calculateAnomalyScore, generateQuickAnomalyScore } from './anomalyCalculator';
 
+// Enhanced error handling and logging
+const logger = {
+  info: (msg: string) => console.log(`[StrategyManager] ${msg}`),
+  warn: (msg: string) => console.warn(`[StrategyManager] ${msg}`),
+  error: (msg: string) => console.error(`[StrategyManager] ${msg}`)
+};
+
 export const DEFAULT_STRATEGIES: Record<StrategyType, Strategy> = {
   'ticklet-alpha': {
     id: 'ticklet-alpha',
@@ -40,16 +47,23 @@ class StrategyManager {
   private strategies: Record<StrategyType, Strategy> = DEFAULT_STRATEGIES;
 
   constructor() {
-    // Load from localStorage if available
-    const saved = localStorage.getItem('trading-strategy-config');
-    if (saved) {
-      try {
+    this.loadConfiguration();
+  }
+
+  private loadConfiguration(): void {
+    try {
+      const saved = localStorage.getItem('trading-strategy-config');
+      if (saved) {
         const config: StrategyConfig = JSON.parse(saved);
         this.activeStrategy = config.activeStrategy;
         this.strategies = { ...DEFAULT_STRATEGIES, ...config.strategies };
-      } catch (error) {
-        console.error('Failed to load strategy config:', error);
+        logger.info(`Loaded strategy configuration: ${this.activeStrategy}`);
       }
+    } catch (error) {
+      logger.error(`Failed to load strategy config: ${error}`);
+      // Fallback to defaults
+      this.activeStrategy = 'ticklet-alpha';
+      this.strategies = DEFAULT_STRATEGIES;
     }
   }
 
@@ -103,11 +117,24 @@ class StrategyManager {
     };
   }
 
-  // Generate strategy-specific signal
+  // Enhanced signal generation with validation and error handling
   async generateSignal(symbol: string, marketData: any): Promise<StrategyResult | null> {
     const strategy = this.getActiveStrategyConfig();
     
+    // Input validation
+    if (!symbol || typeof symbol !== 'string') {
+      logger.error('Invalid symbol provided for signal generation');
+      return null;
+    }
+
+    if (!marketData || typeof marketData !== 'object') {
+      logger.error('Invalid market data provided for signal generation');
+      return null;
+    }
+
     try {
+      logger.info(`Generating signal for ${symbol} using ${strategy.displayName}`);
+      
       switch (this.activeStrategy) {
         case 'ticklet-alpha':
           return await this.executeTickletAlphaStrategy(symbol, marketData);
@@ -119,8 +146,57 @@ class StrategyManager {
           throw new Error(`Unknown strategy: ${this.activeStrategy}`);
       }
     } catch (error) {
-      console.error(`Strategy execution failed for ${strategy.displayName}:`, error);
+      logger.error(`Strategy execution failed for ${strategy.displayName}: ${error}`);
       return null;
+    }
+  }
+
+  // Helper method to validate market data
+  private validateMarketData(marketData: any, symbol: string): boolean {
+    const requiredFields = ['lastPrice', 'priceChangePercent', 'volume'];
+    
+    for (const field of requiredFields) {
+      if (!(field in marketData)) {
+        logger.error(`Missing required field ${field} in market data for ${symbol}`);
+        return false;
+      }
+    }
+
+    const price = parseFloat(marketData.lastPrice);
+    if (!price || price <= 0 || isNaN(price)) {
+      logger.error(`Invalid price data for ${symbol}: ${marketData.lastPrice}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  // Enhanced confidence calculation with bounds checking
+  private calculateStrategyConfidence(volatility: number, volumeUSD: number, priceChange: number): number {
+    try {
+      let confidence = 0.7; // Base confidence
+      
+      // Volume confidence boost with proper validation
+      if (volumeUSD > 0) {
+        if (volumeUSD > 100000000) confidence += 0.1;
+        else if (volumeUSD > 50000000) confidence += 0.05;
+      }
+      
+      // Volatility confidence with bounds checking
+      if (!isNaN(volatility) && volatility > 0) {
+        if (volatility > 7) confidence += 0.15;
+        else if (volatility > 3) confidence += 0.05;
+      }
+      
+      // Price change momentum
+      if (!isNaN(priceChange) && Math.abs(priceChange) > 2) {
+        confidence += 0.05;
+      }
+      
+      return Math.max(0.1, Math.min(0.95, confidence)); // Bounded between 10% and 95%
+    } catch (error) {
+      logger.error(`Error calculating confidence: ${error}`);
+      return 0.5; // Safe fallback
     }
   }
 
