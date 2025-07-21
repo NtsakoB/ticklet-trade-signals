@@ -1,3 +1,5 @@
+import { TakeProfitFormatter } from "@/utils/TakeProfitFormatter";
+
 interface TelegramConfig {
   botToken: string;
   chatId: string;
@@ -116,59 +118,62 @@ class TelegramService {
   }
 
   private formatSignalMessage(signal: SignalData): string {
-    const typeEmoji = signal.type.toLowerCase().includes('long') || signal.type.toLowerCase() === 'buy' ? '🚀' : '🔻';
-    const confidenceEmoji = signal.confidence >= 0.8 ? '🧠' : signal.confidence >= 0.6 ? '🤔' : '⚠️';
+    // Format signal with proper TP level ordering
+    const formattedSignal = TakeProfitFormatter.formatSignalOutput(signal);
+    
+    const typeEmoji = formattedSignal.type.toLowerCase().includes('long') || formattedSignal.type.toLowerCase() === 'buy' ? '🚀' : '🔻';
+    const confidenceEmoji = formattedSignal.confidence >= 0.8 ? '🧠' : formattedSignal.confidence >= 0.6 ? '🤔' : '⚠️';
     
     // Validate signal data to prevent zero values in Telegram messages
-    if (!signal.entryPrice || signal.entryPrice <= 0) {
-      console.error(`[WARN] Zero entry price in Telegram signal for ${signal.symbol}: ${signal.entryPrice}`);
-      throw new Error(`Invalid signal data: Zero entry price for ${signal.symbol}`);
+    if (!formattedSignal.entryPrice || formattedSignal.entryPrice <= 0) {
+      console.error(`[WARN] Zero entry price in Telegram signal for ${formattedSignal.symbol}: ${formattedSignal.entryPrice}`);
+      throw new Error(`Invalid signal data: Zero entry price for ${formattedSignal.symbol}`);
     }
     
-    if (!signal.stopLoss || signal.stopLoss <= 0) {
-      console.error(`[WARN] Zero stop loss in Telegram signal for ${signal.symbol}: ${signal.stopLoss}`);
-      throw new Error(`Invalid signal data: Zero stop loss for ${signal.symbol}`);
+    if (!formattedSignal.stopLoss || formattedSignal.stopLoss <= 0) {
+      console.error(`[WARN] Zero stop loss in Telegram signal for ${formattedSignal.symbol}: ${formattedSignal.stopLoss}`);
+      throw new Error(`Invalid signal data: Zero stop loss for ${formattedSignal.symbol}`);
     }
     
-    let message = `${typeEmoji} <b>${signal.type.toUpperCase()} Setup</b> | #${signal.symbol}\n`;
-    message += `${confidenceEmoji} <b>Confidence:</b> ${(signal.confidence * 100).toFixed(2)}%\n`;
-    message += `📊 <b>Strategy:</b> ${signal.strategyName}\n`;
+    let message = `${typeEmoji} <b>${formattedSignal.type.toUpperCase()} Setup</b> | #${formattedSignal.symbol}\n`;
+    message += `${confidenceEmoji} <b>Confidence:</b> ${(formattedSignal.confidence * 100).toFixed(2)}%\n`;
+    message += `📊 <b>Strategy:</b> ${formattedSignal.strategyName}\n`;
     
     // Format prices with appropriate decimal places for micro-priced tokens
     const getDecimalPlaces = (price: number) => price < 1 ? 6 : price < 100 ? 4 : 2;
-    const entryDecimals = getDecimalPlaces(signal.entryPrice);
-    const slDecimals = getDecimalPlaces(signal.stopLoss);
+    const entryDecimals = getDecimalPlaces(formattedSignal.entryPrice);
+    const slDecimals = getDecimalPlaces(formattedSignal.stopLoss);
     
-    if (signal.entryRange) {
-      const rangeDecimals = getDecimalPlaces(signal.entryRange.min);
-      message += `🎯 <b>Entry:</b> ${signal.entryRange.min.toFixed(rangeDecimals)} → ${signal.entryRange.max.toFixed(rangeDecimals)}\n`;
+    if (formattedSignal.entryRange) {
+      const rangeDecimals = getDecimalPlaces(formattedSignal.entryRange.min);
+      message += `🎯 <b>Entry:</b> ${formattedSignal.entryRange.min.toFixed(rangeDecimals)} → ${formattedSignal.entryRange.max.toFixed(rangeDecimals)}\n`;
     } else {
-      message += `🎯 <b>Entry:</b> ${signal.entryPrice.toFixed(entryDecimals)}\n`;
+      message += `🎯 <b>Entry:</b> ${formattedSignal.entryPrice.toFixed(entryDecimals)}\n`;
     }
     
-    if (signal.targets && signal.targets.length > 0) {
-      // Filter out any zero/invalid targets
-      const validTargets = signal.targets.filter(t => t > 0 && !isNaN(t));
+    if (formattedSignal.targets && formattedSignal.targets.length > 0) {
+      // Filter out any zero/invalid targets and use formatted targets
+      const validTargets = formattedSignal.targets.filter(t => t > 0 && !isNaN(t));
       if (validTargets.length > 0) {
         const targetStr = validTargets.map((t, i) => {
           const decimals = getDecimalPlaces(t);
-          return `🎯 ${t.toFixed(decimals)}`;
-        }).join(', ');
-        message += `<b>Targets:</b> ${targetStr}\n`;
+          return `T${i + 1}: ${t.toFixed(decimals)}`;
+        }).join('\n');
+        message += `<b>Take Profit Levels:</b>\n${targetStr}\n`;
       } else {
-        message += `🎯 <b>Target:</b> ${signal.takeProfit.toFixed(getDecimalPlaces(signal.takeProfit))}\n`;
+        message += `🎯 <b>Target:</b> ${formattedSignal.takeProfit.toFixed(getDecimalPlaces(formattedSignal.takeProfit))}\n`;
       }
     } else {
-      message += `🎯 <b>Target:</b> ${signal.takeProfit.toFixed(getDecimalPlaces(signal.takeProfit))}\n`;
+      message += `🎯 <b>Target:</b> ${formattedSignal.takeProfit.toFixed(getDecimalPlaces(formattedSignal.takeProfit))}\n`;
     }
     
-    message += `🛑 <b>Stop:</b> ${signal.stopLoss.toFixed(slDecimals)}\n`;
+    message += `🛑 <b>Stop:</b> ${formattedSignal.stopLoss.toFixed(slDecimals)}\n`;
     
-    if (signal.leverage && signal.leverage > 0) {
-      message += `⚡ <b>Leverage:</b> ${signal.leverage}x\n`;
+    if (formattedSignal.leverage && formattedSignal.leverage > 0) {
+      message += `⚡ <b>Leverage:</b> ${formattedSignal.leverage}x\n`;
     }
     
-    message += `🕒 <b>Time:</b> ${new Date(signal.timestamp).toLocaleString()}`;
+    message += `🕒 <b>Time:</b> ${new Date(formattedSignal.timestamp).toLocaleString()}`;
     
     return message;
   }

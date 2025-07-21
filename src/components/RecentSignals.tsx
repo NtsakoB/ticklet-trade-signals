@@ -3,6 +3,7 @@ import { TradeSignal } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { TakeProfitFormatter } from "@/utils/TakeProfitFormatter";
 
 interface RecentSignalsProps {
   signals: TradeSignal[];
@@ -43,16 +44,19 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
                     ? `$${signal.stopLoss.toFixed(signal.stopLoss < 1 ? 6 : 4)}` 
                     : '—'}
                 </p>
-                {signal.targets && signal.targets.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Targets: {signal.targets.slice(0, 3).map((target, index) => (
-                      <span key={index}>
-                        🎯 ${target.toFixed(target < 1 ? 6 : 2)}
-                        {index < Math.min(signal.targets!.length, 3) - 1 ? ' • ' : ''}
-                      </span>
-                    ))}
-                  </p>
-                )}
+                {signal.targets && signal.targets.length > 0 && (() => {
+                  const formattedSignal = TakeProfitFormatter.formatSignalOutput(signal);
+                  return (
+                    <p className="text-sm text-muted-foreground">
+                      Targets: {formattedSignal.targets!.slice(0, 3).map((target, index) => (
+                        <span key={index}>
+                          T{index + 1}: ${target.toFixed(target < 1 ? 6 : 2)}
+                          {index < Math.min(formattedSignal.targets!.length, 3) - 1 ? ' • ' : ''}
+                        </span>
+                      ))}
+                    </p>
+                  );
+                })()}
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(signal.timestamp), { addSuffix: true })}
                 </p>
