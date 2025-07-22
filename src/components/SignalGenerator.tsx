@@ -11,6 +11,7 @@ import { fetchMarketData } from "@/services/binanceApi";
 import EnhancedBinanceApi from "@/services/enhancedBinanceApi";
 import { useStrategySignals } from "@/hooks/useStrategy";
 import TelegramService from "@/services/telegramService";
+import SignalBlockBadge from "@/components/ui/signal-block-badge";
 
 interface SignalGeneratorProps {
   onSignalGenerated: (signal: any) => void;
@@ -47,6 +48,7 @@ const SignalGenerator = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [sortByVolume, setSortByVolume] = useState(true);
+  const [signalValidation, setSignalValidation] = useState<{blocked: boolean, reasons?: string[], aiNotes?: string} | null>(null);
   const telegramService = TelegramService.getInstance();
 
   // Fetch filtered symbols based on criteria
@@ -385,6 +387,7 @@ const SignalGenerator = ({
 
   const generateRealSignal = async () => {
     setIsGenerating(true);
+    setSignalValidation(null);
     
     try {
       // Fetch real market data from Binance
@@ -407,7 +410,56 @@ const SignalGenerator = ({
         return;
       }
 
-      const signal = enhanceSignalWithStrategy(strategyResult.signal);
+      const preliminarySignal = enhanceSignalWithStrategy(strategyResult.signal);
+      
+      // Validate signal through global safety filter
+      const candles = data.candlestickData || [];
+      if (candles.length > 0) {
+        try {
+          const validationResponse = await fetch('/api/ticklet-ai/validate_signal', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              candles: candles.map(candle => ({
+                open: parseFloat(candle.open),
+                high: parseFloat(candle.high),
+                low: parseFloat(candle.low),
+                close: parseFloat(candle.close),
+                volume: parseFloat(candle.volume),
+                timestamp: candle.timestamp,
+                bid: parseFloat(candle.close) * 0.999,
+                ask: parseFloat(candle.close) * 1.001
+              })),
+              entry_price: preliminarySignal.entryPrice,
+              direction: preliminarySignal.type.toLowerCase(),
+              strategy_id: preliminarySignal.strategyName,
+              symbol: selectedSymbol
+            })
+          });
+
+          const validationResult = await validationResponse.json();
+          
+          if (!validationResult.valid) {
+            setSignalValidation({
+              blocked: true,
+              reasons: validationResult.details.reasons || ['Signal failed safety checks'],
+              aiNotes: validationResult.details.ai_notes || 'AI analysis flagged potential issues'
+            });
+            toast.error("Signal blocked by safety filter", {
+              description: `${validationResult.details.reasons?.length || 0} safety concerns detected`
+            });
+            setIsGenerating(false);
+            return;
+          }
+        } catch (validationError) {
+          console.warn('Signal validation failed, proceeding with signal:', validationError);
+          // Continue with signal generation if validation service is unavailable
+        }
+      }
+
+      const signal = preliminarySignal;
       setLastSignal(signal);
       onSignalGenerated(signal);
       
@@ -797,6 +849,15 @@ const SignalGenerator = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* Signal Block Badge */}
+        {signalValidation?.blocked && (
+          <SignalBlockBadge 
+            reasons={signalValidation.reasons || []}
+            aiNotes={signalValidation.aiNotes}
+            symbol={selectedSymbol}
+          />
         )}
 
         {/* Action Buttons */}
