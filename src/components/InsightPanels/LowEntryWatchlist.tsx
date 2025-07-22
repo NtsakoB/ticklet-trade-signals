@@ -6,10 +6,7 @@ export const LowEntryWatchlist = () => {
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <TrendingDown className="h-4 w-4 text-green-500" />
-          🔻 Low Entry Watchlist
-        </CardTitle>
+        <CardTitle>Low Entry Watchlist</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-48">

@@ -6,10 +6,7 @@ export const MissedOpportunities = () => {
   return (
     <Card className="h-full border-red-500/20">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-red-500" />
-          ⏳ Missed Opportunities
-        </CardTitle>
+        <CardTitle>Missed Opportunities</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-48">

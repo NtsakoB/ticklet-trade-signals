@@ -178,7 +178,7 @@ const Index = () => {
   const projections = generateProjections(projectionDays, stats);
   
   // Recent signals - use actual signals
-  const recent = signals.slice(0, 5);
+  const recent = signals.slice(0, 10);
   
   // Convert stored trades to the format expected by TradeLog, filtered by active strategy
   const storedTrades = StorageService.getTrades()
@@ -408,14 +408,16 @@ const Index = () => {
                     <SignalTable signals={signals} />
                   </div>
                   <div className="lg:col-span-2">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <RecentSignals signals={recent} />
                       </div>
                       <div className="space-y-4">
                         <LowEntryWatchlist />
-                        <LowestPriceNow />
-                        <MissedOpportunities />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <MissedOpportunities />
+                          <LowestPriceNow />
+                        </div>
                       </div>
                     </div>
                   </div>

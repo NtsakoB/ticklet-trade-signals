@@ -11,13 +11,15 @@ interface RecentSignalsProps {
 
 export function RecentSignals({ signals }: RecentSignalsProps) {
   return (
-    <Card className="bg-trading-card border-gray-800">
+    <Card className="bg-trading-card border-gray-800 h-full">
       <CardHeader className="pb-3">
         <CardTitle>Recent Signals</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 p-6">
-        {signals.length > 0 ? (
-          signals.map((signal) => (
+      <CardContent className="p-0">
+        <div className="max-h-96 overflow-y-auto p-6">
+          <div className="space-y-4">
+            {signals.length > 0 ? (
+              signals.map((signal) => (
             <div key={signal.id} className="flex items-start space-x-4">
               <div className={`mt-0.5 rounded-full p-1 ${signal.type === 'BUY' ? 'bg-trading-positive/20 text-trading-positive' : 'bg-trading-negative/20 text-trading-negative'}`}>
                 <div className="h-2 w-2 rounded-full bg-current animate-pulse-slow" />
@@ -66,6 +68,8 @@ export function RecentSignals({ signals }: RecentSignalsProps) {
         ) : (
           <div className="text-center py-4 text-muted-foreground">No recent signals</div>
         )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
