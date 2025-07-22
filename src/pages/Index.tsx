@@ -22,6 +22,9 @@ import SecuritySettings from "@/components/SecuritySettings";
 import { StrategySelector } from "@/components/ui/strategy-selector";
 import { SymbolSelector } from "@/components/SymbolSelector";
 import { MarketInsights } from "@/components/MarketInsights";
+import { LowEntryWatchlist } from "@/components/InsightPanels/LowEntryWatchlist";
+import { LowestPriceNow } from "@/components/InsightPanels/LowestPriceNow";
+import { MissedOpportunities } from "@/components/InsightPanels/MissedOpportunities";
 import { useStrategy } from "@/hooks/useStrategy";
 import { useTelegramSignals } from "@/hooks/useTelegramSignals";
 import TelegramService from "@/services/telegramService";
@@ -400,12 +403,21 @@ const Index = () => {
           <div>
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   <div className="lg:col-span-2">
                     <SignalTable signals={signals} />
                   </div>
-                  <div>
-                    <RecentSignals signals={recent} />
+                  <div className="lg:col-span-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <RecentSignals signals={recent} />
+                      </div>
+                      <div className="space-y-4">
+                        <LowEntryWatchlist />
+                        <LowestPriceNow />
+                        <MissedOpportunities />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
