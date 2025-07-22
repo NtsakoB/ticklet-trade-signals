@@ -1,28 +1,33 @@
 from talib import RSI
 import numpy as np
+from ticklet_ai.services.data_sources import get_klines_from_exchange
 
-def get_missed_opportunities(all_candles: dict) -> list[dict]:
+def get_missed_opportunities(symbols: list[str], interval: str = "5m", lookback: int = 30) -> list[dict]:
     """
-    Detect missed trading opportunities based on RSI and rapid price pump.
+    Detect missed trading opportunities based on RSI and rapid price pump using live data.
 
     Args:
-        all_candles (dict): Dictionary where keys are symbols and values are lists of candle data.
+        symbols (list[str]): List of trading pair symbols (e.g., ["BTCUSDT", "ETHUSDT"]).
+        interval (str): Candle interval to fetch (e.g., "5m", "15m").
+        lookback (int): Number of candles to look back for analysis (default is 30).
 
     Returns:
         list[dict]: List of missed opportunities.
     """
     missed_opportunities = []
 
-    for symbol, candles in all_candles.items():
-        # Ensure there are sufficient candles (e.g., at least 30 for analysis)
-        if len(candles) < 30:
+    for symbol in symbols:
+        # Pull live candle data from the exchange
+        candles = get_klines_from_exchange(symbol, interval, lookback)
+        if not candles or len(candles) < lookback:
+            # Skip if insufficient data is retrieved
             continue
 
-        # Extract closing prices for the last 30 candles
+        # Extract closing prices
         closing_prices = np.array([candle['close'] for candle in candles])
 
-        # Calculate percentage price change over the last 15–30 candles
-        start_price = closing_prices[-30]
+        # Calculate percentage price change over the lookback period
+        start_price = closing_prices[0]
         end_price = closing_prices[-1]
         pct_gain = ((end_price - start_price) / start_price) * 100
 

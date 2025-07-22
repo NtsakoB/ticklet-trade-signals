@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 
 interface MissedOpportunity {
   symbol: string;
@@ -12,12 +13,31 @@ interface MissedOpportunity {
 }
 
 export const MissedOpportunities = () => {
-  // Mock data - replace with actual API call to backend
-  const missedOpportunities: MissedOpportunity[] = [
-    { symbol: "BTCUSDT", pct_gain: 8.5, rsi: 78, price: 45000, note: "Overbought" },
-    { symbol: "ETHUSDT", pct_gain: 12.3, rsi: 82, price: 3200, note: "Overbought" },
-    { symbol: "ADAUSDT", pct_gain: 6.7, rsi: 76, price: 0.45, note: "Wait for dip" },
-  ];
+  const [missedOpportunities, setMissedOpportunities] = useState<MissedOpportunity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMissedOpportunities = async () => {
+      try {
+        setIsLoading(true);
+        // Replace with actual API endpoint when backend is ready
+        const response = await fetch('/api/missed-opportunities');
+        if (response.ok) {
+          const data = await response.json();
+          setMissedOpportunities(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch missed opportunities:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMissedOpportunities();
+    const interval = setInterval(fetchMissedOpportunities, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Card className="h-full border-red-500/20">
@@ -50,12 +70,18 @@ export const MissedOpportunities = () => {
             </div>
           ) : (
             <div className="p-4 text-center text-muted-foreground">
-              <div className="animate-pulse">
-                Awaiting signal logic...
-              </div>
-              <div className="mt-2 text-xs">
-                Overbought pairs with high-risk entries will appear here
-              </div>
+              {isLoading ? (
+                <div className="animate-pulse">
+                  Loading live market data...
+                </div>
+              ) : (
+                <div>
+                  <div>No missed opportunities detected</div>
+                  <div className="mt-2 text-xs">
+                    Real-time RSI and price analysis active
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>
