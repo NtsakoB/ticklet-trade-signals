@@ -34,6 +34,7 @@ class ChatRequest(BaseModel):
 
 class SaveRequest(BaseModel):
     conversation: List[Message]
+    strategy: str = Field(default="ecosystem", description="Strategy used for this conversation.")
 
 class LearnRequest(BaseModel):
     instruction: str
@@ -83,6 +84,7 @@ async def save_conversation(req: SaveRequest):
     try:
         chat_log_db.append({
             "timestamp": datetime.utcnow().isoformat(),
+            "strategy": req.strategy,
             "conversation": req.conversation
         })
         logging.info("Conversation saved.")
