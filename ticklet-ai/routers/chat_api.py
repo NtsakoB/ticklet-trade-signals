@@ -29,6 +29,7 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, description="The user's input message.")
+    strategy: str = Field(default="ecosystem", description="Selected trading strategy for context.")
     context: List[Message] = Field(default=[], description="List of prior conversation messages.")
 
 class SaveRequest(BaseModel):
@@ -36,6 +37,7 @@ class SaveRequest(BaseModel):
 
 class LearnRequest(BaseModel):
     instruction: str
+    strategy: str = Field(default="ecosystem", description="Strategy used for this interaction.")
     context: List[Message]
     response: str
 
@@ -51,6 +53,10 @@ async def chat(req: ChatRequest):
     try:
         # Limit context to the last 5 messages
         messages = [{"role": m.role, "content": m.content} for m in req.context[-5:]]
+        
+        # Add strategy context to the system message
+        strategy_context = f"You are responding from the perspective of the '{req.strategy}' trading strategy. Provide insights and analysis relevant to this specific approach."
+        messages.insert(0, {"role": "system", "content": strategy_context})
         messages.append({"role": "user", "content": req.message})
 
         # Interact with OpenAI's GPT-4 model
@@ -95,6 +101,7 @@ async def learn(req: LearnRequest):
         learning_db.append({
             "timestamp": datetime.utcnow().isoformat(),
             "instruction": req.instruction,
+            "strategy": req.strategy,
             "context": req.context,
             "response": req.response
         })

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Expand, Send } from 'lucide-react';
 
 interface Message {
@@ -17,11 +18,21 @@ interface ChatBoxProps {
   onExpand: () => void;
 }
 
+const strategies = [
+  { value: 'ticklet-alpha', label: 'Ticklet Alpha' },
+  { value: 'bull-strategy', label: 'Bull Strategy' },
+  { value: 'jam-bot', label: 'Jam Bot' },
+  { value: 'ai-strategy', label: 'AI Strategy' },
+  { value: 'market-regime', label: 'Market Regime Strategy' },
+  { value: 'ecosystem', label: 'Ecosystem (All Strategies)' }
+];
+
 const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hello! How can I assist you today?' }
   ]);
   const [input, setInput] = useState('');
+  const [selectedStrategy, setSelectedStrategy] = useState('ecosystem');
   const [isLoading, setIsLoading] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -56,11 +67,24 @@ const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({
       //     message: input,
+      //     strategy: selectedStrategy,
       //     context: messages.slice(-5) // Last 5 messages for context
       //   })
       // });
       // const data = await res.json();
       // setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      
+      // Also send to learning endpoint:
+      // await fetch('/api/chat/learn', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     instruction: input,
+      //     strategy: selectedStrategy,
+      //     context: messages.slice(-5),
+      //     response: data.reply
+      //   })
+      // });
 
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error reaching AI.' }]);
@@ -140,7 +164,25 @@ const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t bg-muted/20 rounded-b-lg">
+      <div className="p-4 border-t bg-muted/20 rounded-b-lg space-y-3">
+        {/* Strategy Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-medium">Strategy:</span>
+          <Select value={selectedStrategy} onValueChange={setSelectedStrategy}>
+            <SelectTrigger className="h-8 text-xs bg-background border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background border-border">
+              {strategies.map((strategy) => (
+                <SelectItem key={strategy.value} value={strategy.value} className="text-xs">
+                  {strategy.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Message Input */}
         <div className="flex items-center gap-2">
           <Input
             value={input}
