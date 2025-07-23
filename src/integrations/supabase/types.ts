@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_logs: {
+        Row: {
+          conversation: Json
+          created_at: string
+          id: string
+          message_count: number | null
+          strategy: string
+          timestamp: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation?: Json
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          strategy?: string
+          timestamp?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation?: Json
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          strategy?: string
+          timestamp?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_logs_audit: {
+        Row: {
+          audit_id: number
+          chat_log_id: string
+          new_value: Json | null
+          old_value: Json | null
+          operation: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          audit_id?: number
+          chat_log_id: string
+          new_value?: Json | null
+          old_value?: Json | null
+          operation: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          audit_id?: number
+          chat_log_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          operation?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: number
+          joined_at: string | null
+          role: string
+          team_id: number
+          user_id: string
+        }
+        Insert: {
+          id?: never
+          joined_at?: string | null
+          role?: string
+          team_id: number
+          user_id: string
+        }
+        Update: {
+          id?: never
+          joined_at?: string | null
+          role?: string
+          team_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name?: string
+        }
+        Relationships: []
+      }
       Ticklet: {
         Row: {
           created_at: string
@@ -34,7 +153,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      debug_team_membership: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          error_type: string
+          error_message: string
+        }[]
+      }
+      get_teams_for_user: {
+        Args: { p_user_id: string }
+        Returns: {
+          team_id: number
+          team_name: string
+          user_role: string
+          joined_at: string
+        }[]
+      }
+      is_team_member: {
+        Args: { p_team_id: number; p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
