@@ -80,6 +80,72 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_entries: {
+        Row: {
+          context: Json
+          created_at: string
+          id: string
+          instruction: string
+          response: string
+          strategy: string
+          timestamp: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: string
+          instruction: string
+          response: string
+          strategy: string
+          timestamp?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: string
+          instruction?: string
+          response?: string
+          strategy?: string
+          timestamp?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      learning_entries_audit: {
+        Row: {
+          audit_id: number
+          learning_entry_id: string
+          new_value: Json | null
+          old_value: Json | null
+          operation: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          audit_id?: number
+          learning_entry_id: string
+          new_value?: Json | null
+          old_value?: Json | null
+          operation: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          audit_id?: number
+          learning_entry_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          operation?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           id: number
