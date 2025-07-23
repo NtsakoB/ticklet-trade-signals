@@ -1,8 +1,8 @@
-# chat_api.py – FastAPI backend routes for TickletAI Assistant
+# chat_api.py – FastAPI backend routes with strategy-awareness for TickletAI
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 import os
 import logging
@@ -115,17 +115,24 @@ async def learn(req: LearnRequest):
         return {"status": f"error: {str(e)}"}
 
 @router.get("/history")
-async def get_chat_history(limit: int = 10):
+async def get_chat_history(strategy: Optional[str] = Query(None), limit: int = 10):
     """
-    Retrieve recent chat conversations for 'My Chats' tab.
+    Retrieve chat conversations with optional strategy filtering for 'My Chats' tab.
+    Supports strategy-aware ML feedback clustering and personalized coaching.
     """
     try:
+        # Filter by strategy if provided
+        filtered_chats = chat_log_db
+        if strategy:
+            filtered_chats = [log for log in chat_log_db if log.get("strategy") == strategy]
+        
         # Return most recent conversations
-        recent_chats = sorted(chat_log_db, key=lambda x: x["timestamp"], reverse=True)[:limit]
+        recent_chats = sorted(filtered_chats, key=lambda x: x["timestamp"], reverse=True)[:limit]
         
         return {
             "conversations": recent_chats,
-            "total_count": len(chat_log_db)
+            "total_count": len(filtered_chats),
+            "strategy_filter": strategy
         }
     
     except Exception as e:
