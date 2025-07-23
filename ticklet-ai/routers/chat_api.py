@@ -1,33 +1,35 @@
 # chat_api.py – FastAPI backend routes for TickletAI Assistant
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, Field
+from typing import List
 from datetime import datetime
 import os
 import logging
 from openai import OpenAI
 
+# FastAPI router for TickletAI Assistant
+router = APIRouter(prefix="/api/chat", tags=["chat"])
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-
-router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 # OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4.1-2025-04-14")
 
-# Mock persistent store (replace with Supabase/PostgreSQL)
+# Mock persistent store (replace with Supabase/PostgreSQL in production)
 chat_log_db = []
 learning_db = []
 
+# Pydantic models for input validation
 class Message(BaseModel):
     role: str
     content: str
 
 class ChatRequest(BaseModel):
-    message: str
-    context: List[Message] = []
+    message: str = Field(..., min_length=1, description="The user's input message.")
+    context: List[Message] = Field(default=[], description="List of prior conversation messages.")
 
 class SaveRequest(BaseModel):
     conversation: List[Message]
@@ -40,87 +42,68 @@ class LearnRequest(BaseModel):
 @router.post("/")
 async def chat(req: ChatRequest):
     """
-    Process chat message and return AI response with context awareness.
+    Handles user chat requests and interacts with GPT-4.
     """
     if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+        logging.error("OpenAI API key not configured")
+        return {"reply": "⚠️ AI service not configured. Please try again."}
     
     try:
-        # Prepare messages for OpenAI API
-        messages = [
-            {"role": "system", "content": "You are TickletAI Assistant, a helpful trading and cryptocurrency analysis AI. Provide concise, actionable insights."}
-        ]
-        
-        # Add recent context (last 5 messages)
-        for msg in req.context[-5:]:
-            messages.append({"role": msg.role, "content": msg.content})
-        
-        # Add current user message
+        # Limit context to the last 5 messages
+        messages = [{"role": m.role, "content": m.content} for m in req.context[-5:]]
         messages.append({"role": "user", "content": req.message})
-        
-        logging.info(f"Sending chat request with {len(messages)} messages")
-        
+
+        # Interact with OpenAI's GPT-4 model
         response = client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=500,
-            temperature=0.7
+            timeout=10  # Timeout in seconds
         )
-        
         reply = response.choices[0].message.content
-        logging.info(f"Received response: {reply[:100]}...")
-        
+        logging.info(f"AI reply: {reply.strip()}")
         return {"reply": reply.strip()}
 
     except Exception as e:
-        logging.error(f"Chat error: {str(e)}")
-        return {"reply": f"⚠️ AI service temporarily unavailable. Please try again."}
+        # Log and return error message
+        logging.error(f"Error in /api/chat: {str(e)}")
+        return {"reply": f"⚠️ AI error: {str(e)}"}
 
 @router.post("/save")
 async def save_conversation(req: SaveRequest):
     """
-    Save conversation to persistent storage for chat history.
+    Saves a conversation to the chat log.
     """
     try:
-        chat_entry = {
-            "id": len(chat_log_db) + 1,
+        chat_log_db.append({
             "timestamp": datetime.utcnow().isoformat(),
-            "conversation": [msg.dict() for msg in req.conversation],
-            "message_count": len(req.conversation)
-        }
-        
-        chat_log_db.append(chat_entry)
-        logging.info(f"Saved conversation with {len(req.conversation)} messages")
-        
-        return {"status": "saved", "conversation_id": chat_entry["id"]}
-    
+            "conversation": req.conversation
+        })
+        logging.info("Conversation saved.")
+        return {"status": "saved"}
     except Exception as e:
-        logging.error(f"Save error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to save conversation")
+        # Log and return error message
+        logging.error(f"Error in /api/chat/save: {str(e)}")
+        return {"status": f"error: {str(e)}"}
 
 @router.post("/learn")
 async def learn(req: LearnRequest):
     """
-    Store interaction data for AI learning and improvement.
+    Saves learning instructions and responses.
     """
     try:
-        learning_entry = {
-            "id": len(learning_db) + 1,
+        learning_db.append({
             "timestamp": datetime.utcnow().isoformat(),
             "instruction": req.instruction,
-            "context_length": len(req.context),
-            "response": req.response,
-            "response_length": len(req.response)
-        }
-        
-        learning_db.append(learning_entry)
-        logging.info(f"Stored learning entry: {req.instruction[:50]}...")
-        
-        return {"status": "learned", "entry_id": learning_entry["id"]}
-    
+            "context": req.context,
+            "response": req.response
+        })
+        logging.info("Learning instruction saved.")
+        return {"status": "learned"}
     except Exception as e:
-        logging.error(f"Learning error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to store learning data")
+        # Log and return error message
+        logging.error(f"Error in /api/chat/learn: {str(e)}")
+        return {"status": f"error: {str(e)}"}
 
 @router.get("/history")
 async def get_chat_history(limit: int = 10):
