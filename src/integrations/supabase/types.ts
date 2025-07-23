@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      accuracy_snapshots: {
+        Row: {
+          accuracy_curve: number[]
+          created_at: string | null
+          curve_length: number | null
+          id: string
+          max_accuracy: number | null
+          min_accuracy: number | null
+          strategy: string
+          timestamp: string | null
+        }
+        Insert: {
+          accuracy_curve: number[]
+          created_at?: string | null
+          curve_length?: number | null
+          id?: string
+          max_accuracy?: number | null
+          min_accuracy?: number | null
+          strategy: string
+          timestamp?: string | null
+        }
+        Update: {
+          accuracy_curve?: number[]
+          created_at?: string | null
+          curve_length?: number | null
+          id?: string
+          max_accuracy?: number | null
+          min_accuracy?: number | null
+          strategy?: string
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
       chat_logs: {
         Row: {
           conversation: Json
@@ -143,6 +176,42 @@ export type Database = {
           operation?: string
           timestamp?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      signal_scores: {
+        Row: {
+          anomaly: number | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          macd: number | null
+          rsi: number | null
+          strategy: string
+          symbol: string
+          timestamp: string | null
+        }
+        Insert: {
+          anomaly?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          macd?: number | null
+          rsi?: number | null
+          strategy: string
+          symbol: string
+          timestamp?: string | null
+        }
+        Update: {
+          anomaly?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          macd?: number | null
+          rsi?: number | null
+          strategy?: string
+          symbol?: string
+          timestamp?: string | null
         }
         Relationships: []
       }
