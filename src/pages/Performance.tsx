@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TradeOutcomeCharts from "@/components/performance/TradeOutcomeCharts";
 import AiLearningCharts from "@/components/performance/AiLearningCharts";
+import TradeHistoryTable from "@/pages/performance/Table";
 
 const Performance = () => {
   const [selectedStrategy, setSelectedStrategy] = useState<string>("all");
@@ -38,9 +39,10 @@ const Performance = () => {
       </div>
 
       <Tabs defaultValue="outcomes" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="outcomes">Trade Outcomes</TabsTrigger>
           <TabsTrigger value="learning">AI Learning</TabsTrigger>
+          <TabsTrigger value="table">Trade History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="outcomes" className="space-y-6">
@@ -49,6 +51,10 @@ const Performance = () => {
 
         <TabsContent value="learning" className="space-y-6">
           <AiLearningCharts selectedStrategy={selectedStrategy} />
+        </TabsContent>
+
+        <TabsContent value="table" className="space-y-6">
+          <TradeHistoryTable />
         </TabsContent>
       </Tabs>
     </div>
