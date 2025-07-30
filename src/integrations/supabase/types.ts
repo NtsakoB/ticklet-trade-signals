@@ -179,6 +179,33 @@ export type Database = {
         }
         Relationships: []
       }
+      report_failures: {
+        Row: {
+          component: string
+          created_at: string
+          detail: string
+          id: string
+          meta: Json | null
+          timestamp: string
+        }
+        Insert: {
+          component: string
+          created_at?: string
+          detail: string
+          id?: string
+          meta?: Json | null
+          timestamp?: string
+        }
+        Update: {
+          component?: string
+          created_at?: string
+          detail?: string
+          id?: string
+          meta?: Json | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
       signal_scores: {
         Row: {
           anomaly: number | null
