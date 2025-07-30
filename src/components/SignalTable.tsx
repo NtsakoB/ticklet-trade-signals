@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Flag } from "lucide-react";
+import { TakeProfitFormatter } from "@/utils/TakeProfitFormatter";
 
 interface SignalTableProps {
   signals: TradeSignal[];
@@ -123,11 +124,14 @@ export function SignalTable({ signals }: SignalTableProps) {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">${signal.entryPrice}</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {signal.targets.map((target, i) => (
-                          <span key={i} className="text-xs mr-1">
-                            <span className="text-trading-neutral">T{i+1}:</span> ${target}
-                          </span>
-                        ))}
+                        {(() => {
+                          const formattedSignal = TakeProfitFormatter.formatSignalOutput(signal);
+                          return formattedSignal.targets?.map((target, i) => (
+                            <span key={i} className="text-xs mr-1">
+                              <span className="text-trading-neutral">T{i+1}:</span> ${target.toFixed(target < 1 ? 6 : 4)}
+                            </span>
+                          ));
+                        })()}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-trading-negative">${signal.stopLoss}</TableCell>
                       <TableCell className="hidden md:table-cell">

@@ -270,6 +270,8 @@ class AIPredictorStrategy:
                 entry_price * (1 + base_target * 1.5),
                 entry_price * (1 + base_target * 2.5)
             ]
+            # Sort BUY targets in ascending order (low → high)
+            targets = sorted(targets)
             stop_loss = entry_price * (1 - base_target * 0.6)
         else:  # short
             targets = [
@@ -277,6 +279,8 @@ class AIPredictorStrategy:
                 entry_price * (1 - base_target * 1.5),
                 entry_price * (1 - base_target * 2.5)
             ]
+            # Sort SELL targets in descending order (high → low)
+            targets = sorted(targets, reverse=True)
             stop_loss = entry_price * (1 + base_target * 0.6)
         
         return {

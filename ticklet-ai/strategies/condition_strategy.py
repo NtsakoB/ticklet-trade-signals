@@ -234,9 +234,13 @@ class ConditionStrategy:
         
         if direction == 'long':
             targets = [entry_price + (base_range * mult) for mult in target_mult]
+            # Sort BUY targets in ascending order (low → high)
+            targets = sorted(targets)
             stop_loss = entry_price - (base_range * stop_mult)
         else:  # short
             targets = [entry_price - (base_range * mult) for mult in target_mult]
+            # Sort SELL targets in descending order (high → low)
+            targets = sorted(targets, reverse=True)
             stop_loss = entry_price + (base_range * stop_mult)
         
         return {
