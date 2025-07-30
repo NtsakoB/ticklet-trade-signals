@@ -29,15 +29,16 @@ export default function Auth() {
     setError("");
 
     try {
+      const allowedEmail = ALLOWED_EMAIL;
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError || data.user?.email !== ALLOWED_EMAIL) {
+      if (authError || data.user?.email !== allowedEmail) {
         setError("Coming soon");
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (error) {
       setError("Coming soon");
