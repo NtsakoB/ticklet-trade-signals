@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { ALLOWED_EMAIL } from "@/config";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -9,8 +10,6 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Hardcoded allowed email - modify this for your use case
-  const ALLOWED_EMAIL = "me@ticklet.ai";
 
   useEffect(() => {
     // Check if user is already logged in
@@ -29,13 +28,12 @@ export default function Auth() {
     setError("");
 
     try {
-      const allowedEmail = ALLOWED_EMAIL;
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError || data.user?.email !== allowedEmail) {
+      if (authError || data.user?.email !== ALLOWED_EMAIL) {
         setError("Coming soon");
       } else {
         navigate("/dashboard");
