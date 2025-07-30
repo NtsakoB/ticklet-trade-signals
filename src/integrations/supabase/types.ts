@@ -313,6 +313,72 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_history_log: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          entry_price: number | null
+          id: string
+          pnl: number | null
+          signal_id: string | null
+          stop_loss_hit: boolean | null
+          stop_loss_price: number | null
+          strategy: string
+          symbol: string
+          tp1_hit: boolean | null
+          tp1_price: number | null
+          tp2_hit: boolean | null
+          tp2_price: number | null
+          tp3_hit: boolean | null
+          tp3_price: number | null
+          trade_duration: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          entry_price?: number | null
+          id?: string
+          pnl?: number | null
+          signal_id?: string | null
+          stop_loss_hit?: boolean | null
+          stop_loss_price?: number | null
+          strategy?: string
+          symbol: string
+          tp1_hit?: boolean | null
+          tp1_price?: number | null
+          tp2_hit?: boolean | null
+          tp2_price?: number | null
+          tp3_hit?: boolean | null
+          tp3_price?: number | null
+          trade_duration?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          entry_price?: number | null
+          id?: string
+          pnl?: number | null
+          signal_id?: string | null
+          stop_loss_hit?: boolean | null
+          stop_loss_price?: number | null
+          strategy?: string
+          symbol?: string
+          tp1_hit?: boolean | null
+          tp1_price?: number | null
+          tp2_hit?: boolean | null
+          tp2_price?: number | null
+          tp3_hit?: boolean | null
+          tp3_price?: number | null
+          trade_duration?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
