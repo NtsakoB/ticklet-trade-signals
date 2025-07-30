@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import ScoreChart from "@/components/dashboard/ScoreChart";
+import AiReportPanel from "@/components/dashboard/AiReportPanel";
 import axios from "axios";
 
 interface LearningEntry {
@@ -107,6 +108,9 @@ export default function Dashboard() {
           [Projection Line Chart Placeholder]
         </div>
       </div>
+
+      {/* 📄 AI Daily Report */}
+      <AiReportPanel />
 
       {/* 🧠 AI Learning Insights */}
       <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-800">
