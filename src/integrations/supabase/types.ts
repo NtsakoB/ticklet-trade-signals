@@ -405,18 +405,7 @@ export type Database = {
       }
     }
     Views: {
-      user_trade_summary: {
-        Row: {
-          avg_confidence: number | null
-          avg_duration: number | null
-          avg_pnl: number | null
-          strategy: string | null
-          total_trades: number | null
-          user_id: string | null
-          win_rate: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       debug_team_membership: {

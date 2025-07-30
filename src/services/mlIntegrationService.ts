@@ -122,46 +122,66 @@ class MLIntegrationService {
    */
   private async updateStrategyMetrics(strategy: string) {
     try {
-      // Get recent trades for this strategy (last 100)
-      const { data: recentTrades } = await supabase
-        .from('trade_history_log')
-        .select('*')
-        .eq('strategy', strategy)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (!recentTrades?.length) return;
-
-      // Calculate performance metrics
-      const winningTrades = recentTrades.filter(t => 
-        t.tp1_hit || t.tp2_hit || t.tp3_hit
-      );
+      console.log(`Updating strategy metrics for: ${strategy}`);
       
-      const winRate = winningTrades.length / recentTrades.length;
-      const avgPnL = recentTrades.reduce((sum, t) => sum + (t.pnl || 0), 0) / recentTrades.length;
-      const avgConfidence = recentTrades.reduce((sum, t) => sum + (t.confidence || 0), 0) / recentTrades.length;
+      // Get user session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        console.error('No authenticated user for strategy metrics update');
+        return;
+      }
 
-      // Send strategy performance to ML model
-      await supabase.functions.invoke('learning-entries', {
-        body: {
-          action: 'strategy_performance_update',
-          strategy,
-          metrics: {
-            win_rate: winRate,
-            avg_pnl: avgPnL,
-            avg_confidence: avgConfidence,
-            trade_count: recentTrades.length
-          },
-          timestamp: new Date().toISOString()
+      // Call the trades-summary function to get calculated metrics
+      const { data: summary, error } = await supabase.functions.invoke('trades-summary', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         }
       });
 
-      console.log(`Updated ML strategy metrics for ${strategy}:`, {
-        winRate: (winRate * 100).toFixed(1) + '%',
-        avgPnL: avgPnL.toFixed(2),
-        avgConfidence: (avgConfidence * 100).toFixed(1) + '%'
-      });
+      if (error) {
+        console.error('Error fetching strategy summary:', error);
+        return;
+      }
 
+      // Find metrics for the specific strategy
+      const strategyMetrics = summary?.by_strategy?.find((s: any) => s.strategy === strategy);
+      
+      if (strategyMetrics) {
+        console.log(`Strategy ${strategy} metrics:`, {
+          totalTrades: strategyMetrics.total_trades,
+          winRate: strategyMetrics.win_rate.toFixed(2),
+          avgPnl: strategyMetrics.avg_pnl.toFixed(2),
+          avgConfidence: strategyMetrics.avg_confidence.toFixed(2)
+        });
+
+        // Store updated metrics in learning entries for AI tracking
+        await supabase.from('learning_entries').insert({
+          user_id: session.user.id,
+          strategy: strategy,
+          instruction: 'Strategy metrics update',
+          response: JSON.stringify(strategyMetrics),
+          context: {
+            type: 'strategy_metrics',
+            timestamp: new Date().toISOString(),
+            metrics: strategyMetrics
+          }
+        });
+
+        // Send to ML retrain endpoint if strategy has enough trades
+        if (strategyMetrics.total_trades >= 50) {
+          await supabase.functions.invoke('ml-retrain', {
+            body: {
+              user_id: session.user.id,
+              strategy: strategy,
+              trigger: 'strategy_metrics_update'
+            },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            }
+          });
+        }
+      }
+      
     } catch (error) {
       console.error('Error updating strategy metrics:', error);
     }
