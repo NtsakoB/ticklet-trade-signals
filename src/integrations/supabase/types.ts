@@ -379,9 +379,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_trade_counters: {
+        Row: {
+          created_at: string
+          last_retrain_at: string | null
+          trade_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_retrain_at?: string | null
+          trade_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_retrain_at?: string | null
+          trade_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      user_trade_summary: {
+        Row: {
+          avg_confidence: number | null
+          avg_duration: number | null
+          avg_pnl: number | null
+          strategy: string | null
+          total_trades: number | null
+          user_id: string | null
+          win_rate: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       debug_team_membership: {
