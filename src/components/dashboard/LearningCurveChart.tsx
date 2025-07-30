@@ -21,6 +21,7 @@ export default function LearningCurveChart({
   const [curveData, setCurveData] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alertTriggered, setAlertTriggered] = useState(false);
 
   useEffect(() => {
     fetchCurve();
@@ -38,6 +39,7 @@ export default function LearningCurveChart({
       if (Array.isArray(entries)) {
         const mergedCurve = entries.flatMap((entry: any) => entry.accuracy_curve || []);
         setCurveData(mergedCurve);
+        setAlertTriggered(res.data.metadata?.alert_triggered || false);
       } else {
         throw new Error("Invalid data format received from API.");
       }
@@ -71,6 +73,12 @@ export default function LearningCurveChart({
       <h2 className="text-lg font-semibold mb-2" aria-live="polite">
         📈 AI/ML Accuracy Curve (Historical)
       </h2>
+
+      {alertTriggered && (
+        <div className="bg-yellow-900/20 border border-yellow-600 text-yellow-400 px-4 py-2 rounded mb-4" role="alert">
+          ⚠️ Low accuracy detected: Some snapshots show accuracy below 50%
+        </div>
+      )}
 
       {loading && (
         <p className="text-gray-400" role="status">

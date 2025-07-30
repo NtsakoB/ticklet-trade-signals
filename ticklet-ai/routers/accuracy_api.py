@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from supabase import create_client
 
@@ -11,6 +11,9 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 router = APIRouter()
 logging.basicConfig(level=logging.INFO)
+
+ACCURACY_THRESHOLD = 50
+SIX_MONTHS_AGO = datetime.now() - timedelta(days=180)
 
 @router.get("/api/accuracy_snapshots")
 async def get_accuracy_snapshots(
@@ -40,6 +43,12 @@ async def get_accuracy_snapshots(
         result = query.execute()
         data = result.data or []
 
+        # Check for low accuracy alerts
+        alert_triggered = any(
+            entry.get("accuracy_curve") and min(entry["accuracy_curve"]) < ACCURACY_THRESHOLD
+            for entry in data
+        )
+
         return {
             "status": "ok",
             "data": data,
@@ -51,6 +60,7 @@ async def get_accuracy_snapshots(
             },
             "metadata": {
                 "total_records": len(data),
+                "alert_triggered": alert_triggered
             },
         }
 
@@ -59,3 +69,21 @@ async def get_accuracy_snapshots(
     except Exception as e:
         logging.error(f"Error fetching accuracy snapshots: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
+@router.delete("/api/accuracy_snapshots/cleanup")
+async def delete_old_snapshots():
+    try:
+        result = supabase.table("accuracy_snapshots") \
+                         .delete() \
+                         .lt("timestamp", SIX_MONTHS_AGO.isoformat()) \
+                         .execute()
+        deleted_count = result.count if hasattr(result, "count") else "unknown"
+        logging.info(f"Deleted {deleted_count} old snapshots.")
+
+        return {
+            "status": "ok",
+            "message": f"Deleted {deleted_count} snapshots older than 6 months."
+        }
+    except Exception as e:
+        logging.error(f"Cleanup failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Cleanup failed.")
