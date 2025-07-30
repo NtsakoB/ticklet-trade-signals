@@ -1,90 +1,101 @@
-import { Line } from "react-chartjs-2"
+import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   LineElement,
   PointElement,
   CategoryScale,
   LinearScale,
-  Title,
-  Tooltip,
-  Legend
-} from "chart.js"
+} from "chart.js";
 
-ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend)
+ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale);
 
 interface LearningCurveChartProps {
-  accuracyData: number[]
+  strategy?: string; // Allow dynamic strategy support
 }
 
-export default function LearningCurveChart({ accuracyData }: LearningCurveChartProps) {
-  const labels = accuracyData.map((_, i) => `Day ${i + 1}`)
-  
-  const data = {
-    labels,
-    datasets: [
-      {
-        label: "Model Accuracy (%)",
-        data: accuracyData,
-        fill: true,
-        borderColor: "#10b981",
-        backgroundColor: "rgba(16,185,129,0.2)",
-        tension: 0.3
+export default function LearningCurveChart({
+  strategy = "ecosystem",
+}: LearningCurveChartProps) {
+  const [curveData, setCurveData] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCurve();
+  }, [strategy]); // Re-fetch data when strategy changes
+
+  async function fetchCurve() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await axios.get(`/api/accuracy_snapshots?strategy=${strategy}`);
+      const entries = res.data.data || [];
+
+      // Validate and flatten curve arrays from multiple snapshots
+      if (Array.isArray(entries)) {
+        const mergedCurve = entries.flatMap((entry: any) => entry.accuracy_curve || []);
+        setCurveData(mergedCurve);
+      } else {
+        throw new Error("Invalid data format received from API.");
       }
-    ]
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          color: "#ffffff"
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context: any) {
-            return `Accuracy: ${context.raw}%`
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        ticks: {
-          color: "#9ca3af"
+  // Memoize labels and data to optimize performance
+  const chartData = useMemo(() => {
+    const labels = curveData.map((_, i) => `Snapshot ${i + 1}`);
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Model Accuracy (%)",
+          data: curveData,
+          fill: true,
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16,185,129,0.2)",
+          tension: 0.3,
         },
-        grid: {
-          color: "rgba(156, 163, 175, 0.2)"
-        }
-      },
-      y: {
-        ticks: {
-          color: "#9ca3af"
-        },
-        grid: {
-          color: "rgba(156, 163, 175, 0.2)"
-        }
-      }
-    },
-    maintainAspectRatio: false
-  }
+      ],
+    };
+  }, [curveData]);
 
   return (
     <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-800">
-      <h2 className="text-lg font-semibold mb-4 text-white">📈 AI/ML Learning Curve</h2>
-      {accuracyData.length === 0 ? (
-        <p className="text-gray-400">No accuracy data available.</p>
-      ) : (
-        <div style={{ height: accuracyData.length > 10 ? "400px" : "200px" }}>
-          <Line
-            data={data}
-            options={options}
-            aria-label="AI/ML Learning Curve showing model accuracy over time."
-          />
-        </div>
+      <h2 className="text-lg font-semibold mb-2" aria-live="polite">
+        📈 AI/ML Accuracy Curve (Historical)
+      </h2>
+
+      {loading && (
+        <p className="text-gray-400" role="status">
+          Loading accuracy data...
+        </p>
+      )}
+
+      {error && (
+        <p className="text-red-600 mt-2" role="alert">
+          Error: {error}
+        </p>
+      )}
+
+      {!loading && !error && curveData.length === 0 && (
+        <p className="text-gray-400">No accuracy history found.</p>
+      )}
+
+      {!loading && !error && curveData.length > 0 && (
+        <Line
+          data={chartData}
+          options={{ maintainAspectRatio: false }}
+          height={400}
+          aria-label="Line chart showing historical accuracy curve"
+        />
       )}
     </div>
-  )
+  );
 }
