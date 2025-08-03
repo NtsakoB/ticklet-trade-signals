@@ -9,3 +9,12 @@ pydantic==2.7.1
 supabase==2.3.3
 websockets==12.0
 aiofiles==23.2.1
+
+# ML & Data
+xgboost==2.0.3
+scikit-learn==1.4.2
+pandas==2.2.2
+joblib==1.4.2
+
+# Redis
+redis==5.0.3
