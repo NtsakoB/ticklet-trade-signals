@@ -28,17 +28,32 @@ export default function Auth() {
     setError("");
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError || data.user?.email !== ALLOWED_EMAIL) {
-        setError("Coming soon");
-      } else {
-        navigate("/dashboard");
+      console.log("⛳️ Login result:", data);
+      console.log("🔥 Login error:", error);
+      console.log("📧 ALLOWED_EMAIL:", ALLOWED_EMAIL);
+
+      if (error) {
+        setError(error.message);
+        console.log("🚫 Auth error:", error.message);
+        return;
       }
+
+      // Only allow login for the specific allowed email
+      if (data.user?.email !== ALLOWED_EMAIL) {
+        console.log("🚫 Email not allowed:", data.user?.email);
+        setError("Coming soon");
+        return;
+      }
+
+      console.log("✅ Login success:", data.user?.email);
+      navigate("/dashboard");
     } catch (error) {
+      console.log("🚫 Catch error:", error);
       setError("Coming soon");
     } finally {
       setLoading(false);
