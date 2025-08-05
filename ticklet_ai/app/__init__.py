@@ -1,1 +1,1 @@
-# Ticklet AI App Package
+# Ticklet AI App Module

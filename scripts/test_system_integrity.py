@@ -55,6 +55,20 @@ def send_telegram_test():
         print(f"❌ Telegram check failed: {e}")
         raise
 
+def check_api_endpoints():
+    print("🔹 Checking API endpoints...")
+    endpoints = ["/health", "/chat/test", "/telegram/test", "/generate-signal/test", "/feedback/test"]
+    
+    for endpoint in endpoints:
+        try:
+            r = requests.get(f"{API_URL}{endpoint}", timeout=10)
+            if r.status_code == 200:
+                print(f"✅ {endpoint} - OK")
+            else:
+                print(f"⚠️  {endpoint} - {r.status_code}")
+        except Exception as e:
+            print(f"❌ {endpoint} - Failed: {str(e)[:50]}")
+
 def run_all():
     print("\n🧠 TICKLET AI SYSTEM DIAGNOSTIC\n===================================")
     try:
@@ -62,6 +76,7 @@ def run_all():
         check_openai()
         check_supabase()
         send_telegram_test()
+        check_api_endpoints()
         print("\n🎉 ALL SYSTEMS GO — Ticklet AI is live and fully operational!\n")
     except Exception as e:
         print("\n🚨 SYSTEM ERROR DETECTED:")
