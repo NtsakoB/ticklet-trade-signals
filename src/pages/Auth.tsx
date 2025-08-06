@@ -12,7 +12,7 @@ export default function Auth() {
     // Check if user is already verified
     const isVerified = localStorage.getItem("ticklet_user_verified") === "true";
     if (isVerified) {
-      navigate("/");
+      navigate("/dashboard");
     }
   }, [navigate]);
 
@@ -23,17 +23,16 @@ export default function Auth() {
 
     try {
       // Check if email matches allowed email
-      if (email !== ALLOWED_EMAIL) {
-        setError("Access denied. Unauthorized email.");
-        return;
+      if (email.trim() === ALLOWED_EMAIL) {
+        // Store verification in localStorage
+        localStorage.setItem("ticklet_user_verified", "true");
+        navigate("/dashboard");
+      } else {
+        // Show decoy message for incorrect email
+        setError("We're working on it.");
       }
-
-      // Store verification in localStorage
-      localStorage.setItem("ticklet_user_verified", "true");
-      navigate("/");
     } catch (error) {
-      console.error("Auth error:", error);
-      setError("Authentication failed. Please try again.");
+      setError("We're working on it.");
     } finally {
       setLoading(false);
     }
