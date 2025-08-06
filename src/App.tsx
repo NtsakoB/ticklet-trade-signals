@@ -28,16 +28,16 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={<Index />} />
-              <Route path="/chart" element={<Chart />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/ai" element={<Ai />} />
-              <Route path="/performance" element={<Performance />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/chart" element={<ProtectedRoute><Chart /></ProtectedRoute>} />
+              <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
+              <Route path="/ai" element={<ProtectedRoute><Ai /></ProtectedRoute>} />
+              <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               
-              {/* Auth disabled for testing */}
-              {/* <Route path="/auth" element={<Auth />} /> */}
+              {/* Auth route */}
+              <Route path="/auth" element={<Auth />} />
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
