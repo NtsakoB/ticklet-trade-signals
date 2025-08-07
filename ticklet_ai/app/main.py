@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from ticklet_ai.app.routes import telegram, chat, signals, feedback
+from ticklet_ai.app.routes import chat, signals, feedback
+# from ticklet_ai.app.routes import telegram  # TEMPORARILY DISABLED
 import os
 from dotenv import load_dotenv
 
@@ -23,7 +24,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(telegram.router, prefix="/telegram", tags=["telegram"])
+# app.include_router(telegram.router, prefix="/telegram", tags=["telegram"])  # TEMPORARILY DISABLED
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(signals.router, prefix="/generate-signal", tags=["signals"])
 app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
