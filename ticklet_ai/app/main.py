@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ticklet_ai.app.routes import chat, signals, feedback
-# from ticklet_ai.app.routes import telegram  # TEMPORARILY DISABLED
+from ticklet_ai.app.routes import healthz
+from ticklet_ai.app.utils.supabase_check import supabase_can_connect
 import os
 from dotenv import load_dotenv
 
@@ -28,7 +29,15 @@ app.add_middleware(
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(signals.router, prefix="/generate-signal", tags=["signals"])
 app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+app.include_router(healthz.router)
 
+# Startup probe verifies Supabase connectivity but won't crash the app
+@app.on_event("startup")
+async def _startup_probe():
+    ok, msg = supabase_can_connect()
+    if not ok:
+        # Log only; do not raise, to avoid boot loops; we rely on /healthz for k8s-like checks
+        print(f"[WARN] Supabase connectivity issue at startup: {msg}")
 @app.get("/")
 def root():
     """Health check endpoint"""
