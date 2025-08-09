@@ -1,0 +1,24 @@
+Telegram_Pusher Workflow
+
+1) Purpose
+- Telegram_Pusher is a dedicated microservice to reliably forward messages to Telegram channels (signals and maintenance) with HMAC auth, idempotency, circuit breaker, and rate limiting.
+
+2) Architecture Fit (Ticklet Notifier -> Telegram_Pusher)
+- The Notifier service fans out notifications to Telegram_Pusher over HTTP POST /push with signed payloads.
+- Telegram_Pusher handles delivery, retries, and backpressure.
+
+3) Deployment (Hetzner)
+- Copy .env.example to .env and fill values.
+- Run: docker compose up -d --build
+
+4) Optional HTTPS with Caddy
+- Use the provided Caddyfile with your domain and email for TLS.
+
+5) Integration with Notifier
+- Configure Notifier with TELEGRAM_PUSHER_URL and TELEGRAM_PUSHER_SHARED_SECRET to call /push.
+
+6) Monitoring Endpoints
+- /healthz, /readyz, /metrics
+
+7) Expected End State
+- Fault-tolerant, observable Telegram delivery pipeline resistant to rate limits and transient failures.

@@ -1,0 +1,7 @@
+services:
+  telegram_pusher:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - "8001:8001"

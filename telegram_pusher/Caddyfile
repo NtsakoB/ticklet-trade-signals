@@ -1,0 +1,4 @@
+pusher.yourdomain.com {
+  reverse_proxy telegram_pusher:8001
+  tls you@yourmail.com
+}
