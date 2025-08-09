@@ -1,3 +1,4 @@
-httpx==0.23.3
-httpcore==0.16.3
+httpx==0.25.2
+httpcore==0.18.0
+gotrue==2.6.0
 supabase==2.3.3

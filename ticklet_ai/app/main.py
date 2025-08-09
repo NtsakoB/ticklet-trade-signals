@@ -6,6 +6,11 @@ from ticklet_ai.app.utils.supabase_check import supabase_can_connect
 import os
 from dotenv import load_dotenv
 
+try:
+    from ticklet_ai.app.scripts.print_runtime_versions import *  # prints versions at boot
+except Exception as e:
+    print("version probe failed:", e)
+
 # Load environment variables
 load_dotenv()
 
