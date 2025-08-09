@@ -1,8 +1,13 @@
 import os
 import time
-import requests
+import json
+import hmac
+import uuid
+import hashlib
 import logging
 from typing import Optional
+
+import requests
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -12,75 +17,113 @@ formatter = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Rate limiting per chat
-_last_sent_timestamps = {}
+# Backoff schedule (seconds)
+_BACKOFF = [0.5, 1.0, 2.0, 4.0]
 
-def send_telegram_message(chat_id: str, message: str, parse_mode: str = "Markdown", rate_limit_sec: int = 1) -> bool:
+
+def _sign(secret: str, raw_body: bytes) -> str:
+    return hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+
+
+def send_telegram_message(channel: str, message: str, *, image_url: Optional[str] = None) -> bool:
     """
-    Sends a Telegram message to the specified chat ID while enforcing rate limiting.
+    Notifier entrypoint. Sends a Telegram alert via the external telegram_pusher service.
 
-    Args:
-        chat_id (str): The Telegram chat ID to send the message to.
-        message (str): The message content to send.
-        parse_mode (str): The parse mode for the message (e.g., "Markdown", "HTML").
-        rate_limit_sec (int): Minimum time (in seconds) between consecutive messages to the same chat.
-
-    Returns:
-        bool: True if the message was sent successfully, False otherwise.
-
-    Raises:
-        EnvironmentError: If the TELEGRAM_TOKEN environment variable is not set.
+    Behavior per spec:
+      - POST to TELEGRAM_PUSHER_URL with HMAC headers
+      - 200-299: success -> True
+      - 409 (idempotent): log & treat as success -> True
+      - 503 (circuit breaker): log & return False so caller can queue retry
+      - Other 5xx: retry with exponential backoff, then False if still failing
+      - 4xx: log & return False
     """
-    token = os.getenv("TELEGRAM_TOKEN")
-    if not token:
-        raise EnvironmentError("TELEGRAM_TOKEN is not set in the environment.")
+    pusher_url = os.getenv("TELEGRAM_PUSHER_URL")
+    shared_secret = os.getenv("TICKLET_SHARED_SECRET")
 
-    # Enforce rate limiting
-    now = time.time()
-    last_sent = _last_sent_timestamps.get(chat_id, 0)
-    if now - last_sent < rate_limit_sec:
-        logger.warning(f"Rate limit active for chat {chat_id}. Skipping message.")
+    if not pusher_url:
+        logger.error("TELEGRAM_PUSHER_URL is not set; cannot dispatch Telegram alerts.")
         return False
-    _last_sent_timestamps[chat_id] = now
+    if not shared_secret:
+        logger.error("TICKLET_SHARED_SECRET is not set; cannot sign push requests.")
+        return False
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = {
-        "chat_id": chat_id,
+    payload = {
+        "channel": "signals" if channel in {"trading", "signals"} else "maintenance",
         "text": message,
-        "parse_mode": parse_mode,
-        "disable_web_page_preview": True,
+    }
+    if image_url:
+        payload["image_url"] = image_url
+
+    raw_body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    timestamp = str(int(time.time()))
+    signature = _sign(shared_secret, raw_body)
+    headers = {
+        "Content-Type": "application/json",
+        "X-Ticklet-Signature": signature,
+        "X-Ticklet-Timestamp": timestamp,
+        "X-Idempotency-Key": str(uuid.uuid4()),
     }
 
+    # Try once, then backoff on 5xx (except 503 which we return immediately)
+    url = pusher_url.rstrip("/") + "/push"
+
     try:
-        response = requests.post(url, data=data)
-        if response.status_code != 200:
-            logger.error(f"Telegram API error: {response.text}")
-            return False
-        logger.info(f"Message sent successfully to chat {chat_id}.")
-        return True
+        resp = requests.post(url, data=raw_body, headers=headers, timeout=10)
     except requests.RequestException as e:
-        logger.exception(f"Failed to send Telegram message due to a network error: {e}")
+        logger.warning(f"Initial push attempt failed: {e}")
+        resp = None
+
+    def _handle_response(r: Optional[requests.Response]) -> Optional[bool]:
+        if r is None:
+            return None
+        status = r.status_code
+        if 200 <= status < 300:
+            logger.info("Telegram push dispatched via pusher", extra={"status": status})
+            return True
+        if status == 409:
+            logger.info("Idempotent push detected (409) — skipping retry")
+            return True
+        if status == 503:
+            logger.warning("Pusher circuit breaker open (503) — queue for retry")
+            return False
+        if 500 <= status < 600:
+            # Instruct caller to attempt retries (we will do some here too)
+            return None
+        # 4xx non-409
+        try:
+            body = r.text
+        except Exception:
+            body = "<no body>"
+        logger.error(f"Pusher returned {status}: {body}")
         return False
-    except Exception as e:
-        logger.exception(f"Unexpected error while sending Telegram message: {e}")
-        return False
+
+    result = _handle_response(resp)
+    if result is not None:
+        return result
+
+    # Backoff retries for generic 5xx or initial network failure
+    for delay in _BACKOFF:
+        time.sleep(delay)
+        try:
+            resp = requests.post(url, data=raw_body, headers=headers, timeout=10)
+        except requests.RequestException as e:
+            logger.warning(f"Retry failed after {delay}s: {e}")
+            resp = None
+        result = _handle_response(resp)
+        if result is not None:
+            return result
+
+    logger.error("Exhausted retries sending to telegram_pusher")
+    return False
 
 
 def get_target_channel(type: str = "trading") -> Optional[str]:
     """
-    Determines the target Telegram channel based on the type of notification.
-
-    Args:
-        type (str): The type of notification ("trading" or "maintenance").
-
-    Returns:
-        Optional[str]: The chat ID of the target channel, or None if not set.
+    Maps legacy notifier 'type' to telegram_pusher channel names.
+      - "trading"  -> "signals"
+      - "maintenance" -> "maintenance"
+    Returns the channel name expected by the pusher.
     """
     if type == "maintenance":
-        chat_id = os.getenv("TELEGRAM_CHAT_ID_MAINTENANCE")
-    else:
-        chat_id = os.getenv("TELEGRAM_CHAT_ID_TRADING")
-
-    if not chat_id:
-        logger.warning(f"No chat ID found for notification type: {type}")
-    return chat_id
+        return "maintenance"
+    return "signals"
