@@ -12,4 +12,4 @@ pandas==2.2.2
 joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
-# Intentionally exclude: httpx, httpcore, gotrue, supabase (matrix-installed)
+# intentionally exclude: httpx, httpcore, gotrue, supabase (installed by matrix script)
