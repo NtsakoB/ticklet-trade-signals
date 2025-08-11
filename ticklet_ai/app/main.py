@@ -1,4 +1,15 @@
 from fastapi import FastAPI
+import importlib.util, importlib
+
+# Early visibility for import problems
+try:
+    from supabase import create_client
+    spec = importlib.util.find_spec("supabase")
+    print("✅ Supabase verified:", getattr(create_client, "__module__", "unknown"))
+    print("   supabase origin:", spec.origin if spec else "NOT FOUND")
+except Exception as e:
+    print("❌ Supabase import failed:", e)
+    raise
 from fastapi.middleware.cors import CORSMiddleware
 from ticklet_ai.app.routes import chat, signals, feedback
 from ticklet_ai.app.routes import healthz

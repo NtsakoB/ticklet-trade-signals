@@ -1,19 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from supabase import create_client
-import os
+from ticklet_ai.app.utils.supabase_client import get_supabase
 from typing import Optional, Dict, Any
 from datetime import datetime
 
 router = APIRouter()
 
-# Initialize Supabase client
-supabase_url = os.getenv("TICKLET_SUPABASE_URL")
-supabase_key = os.getenv("TICKLET_SUPABASE_ANON_KEY")
-supabase = None
-
-if supabase_url and supabase_key:
-    supabase = create_client(supabase_url, supabase_key)
+# Initialize shared Supabase client
+supabase = get_supabase()
 
 class FeedbackRequest(BaseModel):
     signal_id: str

@@ -1,3 +1,4 @@
+# Core
 fastapi==0.111.0
 uvicorn[standard]==0.30.0
 python-dotenv==1.0.1
@@ -12,9 +13,11 @@ pandas==2.2.2
 joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
-# Installed by script:
-# httpx (0.24.1 or 0.25.2)
-# httpcore (0.17.3 or 1.0.4)
-# gotrue (2.6.0 or 2.8.0)
-# supabase (2.3.3)
 
+# Supabase stack (pins known-compatible APIs)
+httpx==0.24.1
+httpcore==0.17.3
+gotrue==2.4.2
+postgrest==1.2.1
+storage3==0.7.0
+supabase==2.3.3
