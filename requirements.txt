@@ -17,3 +17,4 @@ requests==2.31.0
 # httpcore (0.17.3 or 1.0.4)
 # gotrue (2.6.0 or 2.8.0)
 # supabase (2.3.3)
+
