@@ -14,10 +14,13 @@ joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
 
-# Supabase stack (compatible set)
-httpx==0.27.0
-httpcore==1.0.9
+# Supabase stack (verified compatible set)
+httpx==0.27.0        # satisfies:
+                     # - postgrest (>=0.26,<0.29)
+                     # - gotrue (<0.28)
+                     # - storage3 (>=0.24)
+httpcore==1.0.9       # matches httpx 0.27.0
 gotrue==2.8.0
 postgrest==1.1.1
-storage3==0.7.0
+storage3==0.12.1      # supports httpx>=0.24
 supabase==2.3.3
