@@ -1,4 +1,4 @@
-# Core
+# Core FastAPI stack
 fastapi==0.111.0
 uvicorn[standard]==0.30.0
 python-dotenv==1.0.1
@@ -14,10 +14,11 @@ joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
 
-# Supabase stack (fully aligned on httpx 0.27)
+# Supabase stack (aligned on httpx 0.27)
 httpx==0.27.0
 httpcore==1.0.9
 gotrue==2.8.0
-postgrest==1.1.1
 storage3==0.12.1
 supabase==2.4.1
+# postgrest is intentionally NOT pinned – pip will resolve a 0.x that
+# satisfies supabase's constraint (<0.17.0, >=0.10.8).
