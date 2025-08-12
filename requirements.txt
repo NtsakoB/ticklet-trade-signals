@@ -14,7 +14,9 @@ joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
 
-# Supabase stack – minimal, compatible pins
+# Supabase stack – minimal compatible pins
 supabase==2.4.1
 storage3==0.7.0    # satisfies supabase's <0.8.0 range
-# Do NOT pin postgrest/httpx/httpcore/gotrue; let pip resolve within supabase constraints.
+gotrue==2.6.0      # avoids httpx 'proxy' kwarg bug (2.9.x causes it)
+
+# Leave httpx/httpcore/postgrest unpinned; supabase will constrain them.
