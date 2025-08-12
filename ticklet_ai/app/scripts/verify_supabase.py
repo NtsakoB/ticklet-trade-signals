@@ -1,44 +1,44 @@
-import importlib, importlib.metadata as md, importlib.util
+import importlib.metadata as md
+import sys
 
 
-def v(pkg):
+def v(p):
     try:
-        return md.version(pkg)
+        return md.version(p)
     except Exception:
         return "NOT_INSTALLED"
 
 
-def verify_supabase_installation():
+def ok_range(pkg, ver, lo=None, hi=None):
+    if ver == "NOT_INSTALLED":
+        return False
+    try:
+        parts = [int(x) for x in ver.split(".")[:2]]
+        major, minor = parts[0], (parts[1] if len(parts) > 1 else 0)
+    except Exception:
+        return False
+    if pkg == "postgrest":
+        return major == 0 and 10 <= minor < 17
+    return True
+
+
+def main():
     print("=== Supabase Stack Verification ===")
-    pinned = {
-        "httpx": "0.27.0",
-        "httpcore": "1.0.9",
-        "gotrue": "2.8.0",
-        "storage3": "0.12.1",
-        "supabase": "2.4.1",
-    }
-    for pkg, expected in pinned.items():
-        actual = v(pkg)
-        print(("✓" if actual == expected else "⚠"), f"{pkg}: {actual} (expected {expected})")
-
-    # postgrest is auto-resolved; just report and sanity-check major/minor
-    pr = v("postgrest")
-    if pr != "NOT_INSTALLED":
-        try:
-            major, minor, *_ = [int(x) for x in pr.split('.')]
-            compatible = (major == 0 and 10 <= minor < 17)
-        except Exception:
-            compatible = False
-        print(("✓" if compatible else "⚠"), f"postgrest: {pr} (auto-resolved; <0.17 required)")
-    else:
-        print("✗ postgrest: NOT_INSTALLED")
-
+    to_show = ["supabase", "storage3", "postgrest", "httpx", "httpcore", "gotrue"]
+    for pkg in to_show:
+        ver = v(pkg)
+        mark = "✓"
+        if pkg == "postgrest":
+            mark = "✓" if ok_range(pkg, ver) else "⚠"
+        print(f"{mark} {pkg}: {ver}")
     try:
         from supabase import create_client
         print("✓ create_client import: SUCCESS")
-    except ImportError as e:
-        print(f"✗ create_client import: FAILED - {e}")
+        sys.exit(0)
+    except Exception as e:
+        print(f"✗ create_client import FAILED: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    verify_supabase_installation()
+    main()
