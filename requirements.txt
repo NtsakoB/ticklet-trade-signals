@@ -16,3 +16,5 @@ supabase==2.4.1
 storage3==0.7.0
 gotrue==2.6.0
 numpy==1.26.4
+aiohttp==3.9.5
+tzlocal==5.2
