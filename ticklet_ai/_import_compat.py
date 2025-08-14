@@ -1,28 +1,22 @@
-# Auto-redirect imports between services <-> app.services (and utils -> services)
-import importlib, sys
-PREFERRED = {
-  # prefer canonical services
-  "ticklet_ai.app.services": "ticklet_ai.services",
-  "ticklet_ai.utils": "ticklet_ai.services",
+import sys
+from importlib.abc import MetaPathFinder
+from importlib.util import find_spec
+
+_MAP = {
+    "ticklet_ai.utils.signal_filter": "ticklet_ai.services.signal_filter",
+    "ticklet_ai.app.services.signal_filter": "ticklet_ai.services.signal_filter",
+    "ticklet_ai.app.services.scanner": "ticklet_ai.services.scanner",
+    "ticklet_ai.app.services.notifier": "ticklet_ai.services.notifier",
+    "ticklet_ai.app.services.settings_store": "ticklet_ai.services.settings_store",
+    "ticklet_ai.app.services.trading": "ticklet_ai.services.trading",
 }
-class _Redirector(importlib.abc.MetaPathFinder):
+
+class _RedirectFinder(MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
-        # Only redirect known prefixes
-        for wrong_prefix, right_prefix in PREFERRED.items():
-            if fullname == wrong_prefix or fullname.startswith(wrong_prefix + "."):
-                alt = right_prefix + fullname[len(wrong_prefix):]
-                try:
-                    spec = importlib.util.find_spec(alt)
-                    if spec is None:
-                        return None
-                    # Load alt and alias it under the requested fullname
-                    mod = importlib.import_module(alt)
-                    sys.modules[fullname] = mod
-                    return importlib.util.find_spec(fullname)
-                except Exception:
-                    return None
+        if fullname in _MAP:
+            return find_spec(_MAP[fullname])
         return None
+
 def install():
-    # idempotent
-    if not any(isinstance(f, _Redirector) for f in sys.meta_path):
-        sys.meta_path.insert(0, _Redirector())
+    if not any(isinstance(f, _RedirectFinder) for f in sys.meta_path):
+        sys.meta_path.insert(0, _RedirectFinder())

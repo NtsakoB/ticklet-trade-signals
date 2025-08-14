@@ -1,3 +1,4 @@
+# Core FastAPI stack
 fastapi==0.111.0
 uvicorn[standard]==0.30.0
 python-dotenv==1.0.1
@@ -6,15 +7,24 @@ pyjwt==2.8.0
 pydantic==2.7.1
 websockets==12.0
 aiofiles==23.2.1
+
+# ML / Data
 xgboost==2.0.3
 scikit-learn==1.4.2
 pandas==2.2.2
 joblib==1.4.2
+numpy==1.26.4
+
+# Infra / I/O
 redis==5.0.3
 requests==2.31.0
+aiohttp==3.9.5
+tzlocal==5.2
+
+# Supabase stack (locked stable)
 supabase==2.4.1
 storage3==0.7.0
 gotrue==2.6.0
-numpy==1.26.4
-aiohttp==3.9.5
-tzlocal==5.2
+
+# SCHEDULER (fixes ModuleNotFoundError)
+APScheduler==3.10.4

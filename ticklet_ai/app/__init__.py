@@ -1,6 +1,6 @@
-# app package + import redirect installation
+# Install import redirector immediately on package import
 try:
-    from ticklet_ai import _import_compat
-    _import_compat.install()
+    from ticklet_ai._import_compat import install as _install_import_redirect
+    _install_import_redirect()
 except Exception:
     pass

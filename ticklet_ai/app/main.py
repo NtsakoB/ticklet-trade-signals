@@ -1,33 +1,26 @@
-# ensure redirect hook is active even if __init__ was skipped by tooling
-try:
-    from ticklet_ai import _import_compat  # noqa
-    _import_compat.install()               # noqa
-except Exception:
-    pass
-
 from fastapi import FastAPI
-from .routes import market, chat, feedback, telegram, signals, settings, paper, backtest
-from .tasks import scheduler
+from starlette.middleware import Middleware
+from ticklet_ai.app.middleware.preview_auth import PreviewBypassMiddleware
+from ticklet_ai.app.tasks import scheduler
 
-app = FastAPI(title="Ticklet AI Backend")
+middleware = [Middleware(PreviewBypassMiddleware)]
+app = FastAPI(middleware=middleware)
 
-app.include_router(market.router)
-app.include_router(chat.router)
-app.include_router(feedback.router)
-app.include_router(telegram.router)
-app.include_router(signals.router)
-app.include_router(settings.router)
-app.include_router(paper.router)
-app.include_router(backtest.router)
+@app.on_event("startup")
+async def _start():
+    scheduler.start()
+
+@app.on_event("shutdown")
+async def _stop():
+    scheduler.stop()
 
 @app.get("/health")
 async def health():
     return {"ok": True}
 
-@app.on_event("startup")
-async def _startup():
-    await scheduler.start()
-
-@app.on_event("shutdown")
-async def _shutdown():
-    await scheduler.stop()
+try:
+    from ticklet_ai.app.routes import api as api_router
+    app.include_router(api_router)
+except Exception:
+    # routes package might already be wired elsewhere
+    pass
