@@ -12,8 +12,7 @@ pandas==2.2.2
 joblib==1.4.2
 redis==5.0.3
 requests==2.31.0
-
-# minimal Supabase stack (prevents gotrue 'proxy' bug)
 supabase==2.4.1
 storage3==0.7.0
 gotrue==2.6.0
+numpy==1.26.4

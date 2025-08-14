@@ -1,12 +1,5 @@
-import sys, importlib
-pkgs = ["fastapi","openai","supabase","pydantic","requests"]
-bad = []
-for p in pkgs:
-    try:
-        m = importlib.import_module(p)
-        print(f"✓ import {p}: OK ({getattr(m,'__version__', 'n/a')})")
-    except Exception as e:
-        print(f"✗ import {p}: {e}"); bad.append(p)
-if bad:
-    sys.exit(1)
+import importlib
+for p in ["fastapi","openai","supabase","pydantic","requests"]:
+    importlib.import_module(p)
+    print(f"✓ import {p}: OK")
 print("✓ runtime imports verified")

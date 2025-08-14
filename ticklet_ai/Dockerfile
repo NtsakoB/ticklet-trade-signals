@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --upgrade pip wheel && \
     pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
-
 # ---- Final Stage ----
 FROM python:3.12-slim
 WORKDIR /app

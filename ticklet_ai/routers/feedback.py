@@ -1,10 +1,11 @@
-# Feedback and Logging Endpoints
-# /feedback/log routes
-
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
+class FB(BaseModel):
+    text: str
+
 @router.post("/log")
-def log_feedback():
-    return {"message": "Feedback logging endpoint"}
+async def log_feedback(fb: FB):
+    return {"ok": True}

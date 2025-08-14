@@ -1,71 +1,26 @@
 from fastapi import FastAPI
-import importlib.util, importlib
+from .routes import market, chat, feedback, telegram, signals, settings, paper, backtest
+from .tasks import scheduler
 
-# Early visibility for import problems
-try:
-    from supabase import create_client
-    spec = importlib.util.find_spec("supabase")
-    print("✅ Supabase verified:", getattr(create_client, "__module__", "unknown"))
-    print("   supabase origin:", spec.origin if spec else "NOT FOUND")
-except Exception as e:
-    print("❌ Supabase import failed:", e)
-    raise
-from fastapi.middleware.cors import CORSMiddleware
-from ticklet_ai.app.routes import chat, signals, feedback
-from ticklet_ai.app.routes import healthz
-from ticklet_ai.app.utils.supabase_check import supabase_can_connect
-import os
-from dotenv import load_dotenv
+app = FastAPI(title="Ticklet AI Backend")
 
-try:
-    from ticklet_ai.app.scripts.print_runtime_versions import *  # prints versions at boot
-except Exception as e:
-    print("version probe failed:", e)
-
-# Load environment variables
-load_dotenv()
-
-app = FastAPI(
-    title="Ticklet AI Backend",
-    description="Trading AI system with Telegram, OpenAI, and Supabase integration",
-    version="1.0.0"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-# app.include_router(telegram.router, prefix="/telegram", tags=["telegram"])  # TEMPORARILY DISABLED
-app.include_router(chat.router, prefix="/chat", tags=["chat"])
-app.include_router(signals.router, prefix="/generate-signal", tags=["signals"])
-app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
-app.include_router(healthz.router)
-
-# Startup probe verifies Supabase connectivity but won't crash the app
-@app.on_event("startup")
-async def _startup_probe():
-    ok, msg = supabase_can_connect()
-    if not ok:
-        # Log only; do not raise, to avoid boot loops; we rely on /healthz for k8s-like checks
-        print(f"[WARN] Supabase connectivity issue at startup: {msg}")
-@app.get("/")
-def root():
-    """Health check endpoint"""
-    return {"message": "Ticklet AI backend is live ✅", "status": "operational"}
+app.include_router(market.router)
+app.include_router(chat.router)
+app.include_router(feedback.router)
+app.include_router(telegram.router)
+app.include_router(signals.router)
+app.include_router(settings.router)
+app.include_router(paper.router)
+app.include_router(backtest.router)
 
 @app.get("/health")
-def health_check():
-    """Detailed health check"""
-    return {
-        "status": "healthy",
-        "service": "Ticklet AI",
-        "version": "1.0.0",
-        "backend_url": os.getenv("BACKEND_URL", "not_set"),
-        "environment": "production" if os.getenv("RENDER") else "development"
-    }
+async def health():
+    return {"ok": True}
+
+@app.on_event("startup")
+async def _startup():
+    await scheduler.start()
+
+@app.on_event("shutdown")
+async def _shutdown():
+    await scheduler.stop()

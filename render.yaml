@@ -3,9 +3,7 @@ services:
     name: ticklet
     env: docker
     dockerfilePath: ticklet_ai/Dockerfile
-    plan: starter
     autoDeploy: true
     envVars:
       - key: PORT
         value: "8000"
-      # Start command is already in the Dockerfile's CMD; override not needed.
