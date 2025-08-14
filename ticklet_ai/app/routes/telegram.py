@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from ..services.notifier import send_trade
+from ticklet_ai.services.notifier import send_trade
 
 router = APIRouter(prefix="/telegram", tags=["telegram"])
 
