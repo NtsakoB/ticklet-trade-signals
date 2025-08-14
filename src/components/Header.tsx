@@ -1,5 +1,5 @@
 
-import { BellIcon, GearIcon, ExitIcon } from '@radix-ui/react-icons';
+import { BellIcon, GearIcon, ExitIcon, ChatBubbleIcon } from '@radix-ui/react-icons';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,14 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" aria-label="Notifications">
             <BellIcon className="h-5 w-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            aria-label="Chat"
+            onClick={() => navigate('/chat')}
+          >
+            <ChatBubbleIcon className="h-5 w-5" />
           </Button>
           <Button 
             variant="ghost" 
