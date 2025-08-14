@@ -1,1 +1,1 @@
-# services subpackage
+# services package (canonical)

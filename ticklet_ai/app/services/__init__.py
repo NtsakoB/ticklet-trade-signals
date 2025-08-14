@@ -1,1 +1,1 @@
-# package
+# legacy services package (shim layer)

@@ -1,3 +1,10 @@
+# ensure redirect hook is active even if __init__ was skipped by tooling
+try:
+    from ticklet_ai import _import_compat  # noqa
+    _import_compat.install()               # noqa
+except Exception:
+    pass
+
 from fastapi import FastAPI
 from .routes import market, chat, feedback, telegram, signals, settings, paper, backtest
 from .tasks import scheduler
