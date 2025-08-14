@@ -28,3 +28,4 @@ gotrue==2.6.0
 
 # SCHEDULER (fixes ModuleNotFoundError)
 APScheduler==3.10.4
+APScheduler==3.10.4
