@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .settings import router as settings_router
+from .pusher import router as pusher_router
 
 api = APIRouter()
-api.include_router(settings_router)
+api.include_router(pusher_router)

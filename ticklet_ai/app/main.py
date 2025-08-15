@@ -7,6 +7,7 @@ from ticklet_ai.app.tasks import scheduler
 log = logging.getLogger(__name__)
 middleware = [Middleware(PreviewBypassMiddleware)]
 app = FastAPI(middleware=middleware)
+
 try:
     from ticklet_ai.app.routes import api as api_router
     app.include_router(api_router)
