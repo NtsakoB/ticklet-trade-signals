@@ -1,65 +1,70 @@
-import os
-from datetime import datetime
+import asyncio
+import inspect
+import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from ticklet_ai.services.scanner import get_candidates
-from ticklet_ai.services.signal_filter import rideout_should_alert
-from ticklet_ai.services.notifier import send_trade, send_maint
+from apscheduler.triggers.interval import IntervalTrigger
 
-_scheduler: AsyncIOScheduler | None = None
+# Adjust import path as in your project
+from ticklet_ai.app.services.scanner import get_candidates
+from ticklet_ai.services.notifier import send_maint
 
-def _tz() -> str:
-    return os.getenv("SCHED_TZ", "Africa/Johannesburg")
+logger = logging.getLogger(__name__)
+scheduler = AsyncIOScheduler()
 
 async def _scan_once():
+    """
+    One scan tick. Robust to sync or async get_candidates().
+    If get_candidates() returns a list, we use it directly.
+    If it returns a coroutine/awaitable, we await it.
+    """
     try:
-        cands = await get_candidates()
-        hits = 0
-        for c in cands:
-            ok, meta = rideout_should_alert(c)
-            if ok:
-                await send_trade(meta); hits += 1
-        if hits == 0:
-            await send_maint({"msg": "No alerts this pass", "ts": datetime.utcnow().isoformat()})
-    except Exception as e:
-        await send_maint({"level": "error", "msg": f"scan loop error: {e}"})
+        raw = get_candidates()
+        if inspect.isawaitable(raw):
+            candidates = await raw
+        else:
+            candidates = raw
 
-async def _daily_report():
+        # Defensive: ensure list-like
+        if candidates is None:
+            candidates = []
+        elif not isinstance(candidates, (list, tuple)):
+            candidates = [candidates]
+
+        logger.info(f"Scan found {len(candidates)} candidate(s)")
+        # TODO: process candidates here…
+
+    except Exception as e:
+        msg = f"⚠️ Scanner error: {str(e)[:200]}"
+        logger.error("Scan loop error", exc_info=True)
+        try:
+            # send_maint is async-safe (uses asyncio.to_thread internally)
+            await send_maint({"text": msg, "level": "warning"})
+        except Exception as notify_err:
+            logger.error(f"Failed to send maintenance notification: {notify_err}")
+
+def start_scheduler():
+    """
+    Start background scheduler (1-minute interval, no overlap).
+    """
     try:
-        await send_maint({"msg": "Daily AI report dispatched"})
+        scheduler.add_job(
+            _scan_once,
+            trigger=IntervalTrigger(minutes=1),
+            id="scan_candidates",
+            name="Scan for trading candidates",
+            max_instances=1,
+            misfire_grace_time=30
+        )
+        scheduler.start()
+        logger.info("Scheduler started")
     except Exception as e:
-        await send_maint({"level": "error", "msg": f"daily report error: {e}"})
+        logger.error(f"Failed to start scheduler: {e}")
+        raise
 
-def start(loop=None):
-    global _scheduler
-    if _scheduler is not None:
-        return _scheduler
-    _scheduler = AsyncIOScheduler(timezone=_tz())
-
-    # KEY FIX: pass coroutine functions directly (no lambda/create_task)
-    interval = int(os.getenv("SIGNAL_LOOP_INTERVAL", "60"))
-    _scheduler.add_job(
-        _scan_once,
-        trigger="interval",
-        seconds=interval,
-        id="scan_loop",
-        replace_existing=True
-    )
-
-    hh = int(os.getenv("SCHEDULER_HOUR", "10"))
-    mm = int(os.getenv("SCHEDULER_MINUTE", "0"))
-    _scheduler.add_job(
-        _daily_report,
-        CronTrigger(hour=hh, minute=mm, timezone=_tz()),
-        id="daily_report",
-        replace_existing=True
-    )
-
-    _scheduler.start()
-    return _scheduler
-
-def stop():
-    global _scheduler
-    if _scheduler:
-        _scheduler.shutdown(wait=False)
-        _scheduler = None
+def stop_scheduler():
+    try:
+        if scheduler.running:
+            scheduler.shutdown(wait=True)
+            logger.info("Scheduler stopped")
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {e}")
