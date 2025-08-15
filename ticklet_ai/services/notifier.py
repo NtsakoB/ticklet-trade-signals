@@ -4,10 +4,11 @@ import requests
 
 RAW_PUSHER = (os.getenv("TELEGRAM_PUSHER_URL", "") or "").rstrip("/")
 SECRET     = os.getenv("TELEGRAM_PUSHER_SHARED_SECRET", "")
-TIMEOUT    = float(os.getenv("PUSHER_HTTP_TIMEOUT", "30"))
-RETRIES    = int(os.getenv("PUSHER_HTTP_RETRIES", "2"))
-BACKOFF    = float(os.getenv("PUSHER_HTTP_BACKOFF", "0.75"))
-PREVIEW    = os.getenv("PREVIEW_MODE", "false").lower() == "true"
+
+TIMEOUT = float(os.getenv("PUSHER_HTTP_TIMEOUT", "30"))
+RETRIES = int(os.getenv("PUSHER_HTTP_RETRIES", "2"))
+BACKOFF = float(os.getenv("PUSHER_HTTP_BACKOFF", "0.75"))
+PREVIEW = os.getenv("PREVIEW_MODE", "false").lower() == "true"
 
 # Accept either full /push URL or base URL
 PUSHER_URL = RAW_PUSHER if RAW_PUSHER.endswith("/push") else (RAW_PUSHER + "/push" if RAW_PUSHER else "")
@@ -40,14 +41,12 @@ def _post_sync(obj: Dict[str, Any]) -> Dict[str, Any]:
                 time.sleep(BACKOFF * (attempt + 1)); continue
             r.raise_for_status()
             return r.json() if r.headers.get("content-type","").startswith("application/json") else {"ok": r.ok}
-        except requests.Timeout as e:
-            last_exc = e
         except requests.RequestException as e:
             last_exc = e
-        if attempt < RETRIES:
-            time.sleep(BACKOFF * (attempt + 1))
-        else:
-            break
+            if attempt < RETRIES:
+                time.sleep(BACKOFF * (attempt + 1))
+            else:
+                break
     raise RuntimeError(f"Pusher request failed: {last_exc}")
 
 async def send_trade(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -55,7 +54,7 @@ async def send_trade(payload: Dict[str, Any]) -> Dict[str, Any]:
     return await asyncio.to_thread(_post_sync, obj)
 
 async def send_maint(payload: Dict[str, Any]) -> Dict[str, Any]:
-    # ensure text always serializes
+    # Ensure text always serializes even if structured
     if isinstance(payload, dict) and not isinstance(payload.get("text"), str):
         payload = {"text": json.dumps(payload, ensure_ascii=False)[:512], **payload}
     obj = {"channel": "maintenance", **(payload or {})}

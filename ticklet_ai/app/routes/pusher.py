@@ -8,11 +8,12 @@ router = APIRouter(tags=["pusher"])
 # Env
 SECRET = os.getenv("TELEGRAM_PUSHER_SHARED_SECRET", "")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
 CHAT_MAINT = os.getenv("TELEGRAM_CHAT_ID_MAINTENANCE", "")
 CHAT_TRADES = os.getenv("TELEGRAM_CHAT_ID_TRADING", "")
 CHAT_AI    = os.getenv("TELEGRAM_CHAT_ID_CHAT_BOT", "")
 
-# Tunables
+# Tunables (env or defaults)
 HTTP_TIMEOUT = float(os.getenv("TELEGRAM_HTTP_TIMEOUT", "30"))
 HTTP_RETRIES = int(os.getenv("TELEGRAM_HTTP_RETRIES", "2"))
 HTTP_BACKOFF = float(os.getenv("TELEGRAM_HTTP_BACKOFF", "0.75"))
@@ -24,13 +25,14 @@ def _verify_signature(raw: bytes, provided: Optional[str]) -> None:
     if not provided:
         raise HTTPException(status_code=401, detail="Missing signature")
     expected = hmac.new(SECRET.encode(), raw, hashlib.sha256).hexdigest()
-    if expected.lower() != provided.strip().lower():
+    # constant-time comparison
+    if not hmac.compare_digest(expected.lower(), provided.strip().lower()):
         raise HTTPException(status_code=403, detail="Invalid signature")
 
 def _coerce_text(value: Any) -> str:
     """
     Accepts str | dict | list | None and returns a safe string <= MAX_TEXT_LEN.
-    Fixes: AttributeError when 'text' is a dict/list.
+    Fixes: AttributeError when 'text' is dict/list/None.
     """
     if isinstance(value, str):
         s = value.strip()
@@ -111,14 +113,18 @@ async def health_head():
 async def push(request: Request):
     raw = await request.body()
     _verify_signature(raw, request.headers.get("X-Ticklet-Signature"))
+
     try:
         data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
+
     text = _coerce_text(data.get("text"))
     if not text:
         raise HTTPException(status_code=400, detail="Missing text")
+
     channel = _coerce_channel(data.get("channel"))
     image_url = _coerce_image_url(data.get("image_url"))
+
     _send_telegram(text=text, channel=channel, image_url=image_url)
     return {"ok": True}

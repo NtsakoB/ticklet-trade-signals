@@ -24,7 +24,7 @@ def _merge_defaults(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 def get_settings(user_id: Optional[str] = None) -> Dict[str, Any]:
     """
-    Returns settings for user_id; on 204/empty/errors, returns DEFAULTS.
+    Returns settings; on 204/empty/errors, returns DEFAULTS.
     """
     sb = get_client()
     try:
