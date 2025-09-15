@@ -1,6 +1,7 @@
 import os, logging
+from ticklet_ai.config import settings
 logger = logging.getLogger(__name__)
-TELEGRAM_ENABLED = os.getenv('ENABLE_TELEGRAM', 'false').lower() == 'true'
+TELEGRAM_ENABLED = str(settings.ENABLE_TELEGRAM).lower() == 'true'
 
 def send_telegram_message(channel: str, text: str, image_url: str | None = None) -> bool:
     if not TELEGRAM_ENABLED:

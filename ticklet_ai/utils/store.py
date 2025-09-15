@@ -1,9 +1,14 @@
 import os, logging, csv, pathlib
 from datetime import datetime, timezone
 from supabase import create_client, Client
+from ticklet_ai.config import settings
 logger = logging.getLogger(__name__)
-URL = os.getenv('SUPABASE_URL')
-SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_ANON_KEY')
+URL = settings.SUPABASE_URL
+SERVICE_KEY = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY
+
+if not URL or not SERVICE_KEY:
+    raise RuntimeError('Set TICKLET_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY')
+
 supa: Client = create_client(URL, SERVICE_KEY)
 DATA_DIR = pathlib.Path(os.getenv('DATA_DIR','/data/logs'))
 DATA_DIR.mkdir(parents=True, exist_ok=True)

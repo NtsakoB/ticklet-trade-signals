@@ -2,6 +2,7 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from ticklet_ai.config import settings
 from utils.telegram_dispatcher import send_telegram_message, get_target_channel
 import logging
 import datetime
@@ -109,7 +110,7 @@ def send_daily_ai_report():
         )
 
 def start_scheduler():
-    scheduler = BackgroundScheduler(timezone="Africa/Johannesburg")
+    scheduler = BackgroundScheduler(timezone=settings.TZ)
     scheduler.add_job(
         send_daily_ai_report,
         CronTrigger(hour=10, minute=0),
