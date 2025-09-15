@@ -23,6 +23,7 @@ LOGS_DIR = DATA_DIR / 'logs'
 CACHE_DIR = DATA_DIR / 'cache'
 
 def ensure_dirs():
+    global DATA_DIR, LOGS_DIR, CACHE_DIR
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,7 +31,6 @@ def ensure_dirs():
         logger.info('DATA_DIR=%s (logs=%s cache=%s)', DATA_DIR, LOGS_DIR, CACHE_DIR)
     except PermissionError:
         # last-resort: fall back to /tmp if chosen path is not writable
-        global DATA_DIR, LOGS_DIR, CACHE_DIR
         DATA_DIR = _DEF_TMP
         LOGS_DIR = DATA_DIR / 'logs'
         CACHE_DIR = DATA_DIR / 'cache'
