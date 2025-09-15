@@ -1,13 +1,26 @@
 import logging
 from fastapi import FastAPI
 from starlette.middleware import Middleware
+from logging.handlers import RotatingFileHandler
 from ticklet_ai.app.middleware.preview_auth import PreviewBypassMiddleware
 from ticklet_ai.app.tasks import scheduler
 from ticklet_ai.config import settings
+from ticklet_ai.utils.paths import LOGS_DIR
 
 log = logging.getLogger(__name__)
 middleware = [Middleware(PreviewBypassMiddleware)]
 app = FastAPI(middleware=middleware)
+# Configure rotating file logging safely under LOGS_DIR
+try:
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    fh = RotatingFileHandler((LOGS_DIR / 'ticklet.log'), maxBytes=2_000_000, backupCount=3)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+    fh.setFormatter(fmt)
+    root = logging.getLogger()
+    if not any(isinstance(h, RotatingFileHandler) for h in root.handlers):
+        root.addHandler(fh)
+except Exception as e:
+    logging.getLogger(__name__).warning('File logging disabled: %s', e)
 # Validate env on startup
 settings.validate()
 
