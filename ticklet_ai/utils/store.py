@@ -1,18 +1,17 @@
-import os, logging, csv
+from supabase import create_client, Client
+import logging, csv
 from pathlib import Path
 from datetime import datetime, timezone
-from supabase import create_client, Client
 from ticklet_ai.config import settings
-from ticklet_ai.utils.paths import DATA_DIR, LOGS_DIR
+from ticklet_ai.utils.paths import DATA_DIR
+
 logger = logging.getLogger(__name__)
 URL = settings.SUPABASE_URL
 SERVICE_KEY = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY
-
 if not URL or not SERVICE_KEY:
-    raise RuntimeError('Set TICKLET_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY')
-
+    raise RuntimeError("Set TICKLET_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY (worker) / ANON (web).")
 supa: Client = create_client(URL, SERVICE_KEY)
-CSV_DIR = DATA_DIR / 'logs'
+CSV_DIR = DATA_DIR / "logs"
 CSV_DIR.mkdir(parents=True, exist_ok=True)
 
 def _insert(table: str, rows):
