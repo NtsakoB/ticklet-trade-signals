@@ -15,6 +15,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/backtest" element={<RequireAuth><Backtest /></RequireAuth>} />
