@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-import httpx
+import aiohttp
 from typing import List, Any
 
 BINANCE_BASE = "https://api.binance.com"
@@ -12,11 +12,12 @@ async def get_symbols(quote: str = "USDT") -> List[str]:
   Returns a simple list of tradable symbols filtered by quote (default USDT).
   """
   url = f"{BINANCE_BASE}/api/v3/exchangeInfo"
-  timeout = httpx.Timeout(10.0, connect=5.0)
-  async with httpx.AsyncClient(timeout=timeout) as client:
-    r = await client.get(url)
-    r.raise_for_status()
-    data = r.json()
+  timeout = aiohttp.ClientTimeout(total=10)
+  async with aiohttp.ClientSession(timeout=timeout) as session:
+    async with session.get(url) as resp:
+      if resp.status != 200:
+        raise HTTPException(status_code=resp.status, detail=await resp.text())
+      data = await resp.json()
   symbols = []
   for s in data.get("symbols", []):
     if s.get("status") == "TRADING" and s.get("quoteAsset") == quote:
@@ -35,13 +36,12 @@ async def get_klines(
   """
   url = f"{BINANCE_BASE}/api/v3/klines"
   params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
-  timeout = httpx.Timeout(10.0, connect=5.0)
+  timeout = aiohttp.ClientTimeout(total=10)
   try:
-    async with httpx.AsyncClient(timeout=timeout) as client:
-      r = await client.get(url, params=params)
-      r.raise_for_status()
-      return r.json()
-  except httpx.HTTPStatusError as e:
-    raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+      async with session.get(url, params=params) as resp:
+        if resp.status != 200:
+          raise HTTPException(status_code=resp.status, detail=await resp.text())
+        return await resp.json()
   except Exception as e:
     raise HTTPException(status_code=502, detail=f"Upstream error: {e}")
