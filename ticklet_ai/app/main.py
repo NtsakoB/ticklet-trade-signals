@@ -169,3 +169,9 @@ try:
     app.include_router(api_router)
 except Exception:
     pass
+
+try:
+    from ticklet_ai.app.routes import golden_hook_x as ghx_routes
+    app.include_router(ghx_routes.router)
+except Exception:
+    pass
