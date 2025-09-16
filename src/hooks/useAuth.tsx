@@ -1,32 +1,50 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
-  isVerified: boolean;
+  user: User | null;
+  session: Session | null;
   loading: boolean;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isVerified, setIsVerified] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for verification
-    const verified = localStorage.getItem("ticklet_user_verified") === "true";
-    setIsVerified(verified);
-    setLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = () => {
-    localStorage.removeItem("ticklet_user_verified");
-    setIsVerified(false);
-    window.location.href = "/auth";
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
   };
 
   const value = {
-    isVerified,
+    user,
+    session,
     loading,
     signOut,
   };

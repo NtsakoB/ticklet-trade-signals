@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!,
-  { auth: { persistSession: true, flowType: "pkce", detectSessionInUrl: true } }
-);
+import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AuthPage() {
+  const { session, loading } = useAuth();
   const [email, setEmail] = useState("");
+  
+  // Redirect if already authenticated
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (session) return <Navigate to="/" replace />;
+  
   async function onEnter(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.auth.signInWithOtp({
