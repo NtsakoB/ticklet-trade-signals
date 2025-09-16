@@ -62,7 +62,7 @@ const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
       }, 1000);
 
       // Future implementation:
-      // const res = await fetch('/api/chat', {
+      // const res = await apiFetch('/api/chat', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({
@@ -75,7 +75,7 @@ const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
       // setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
       
       // Also send to learning endpoint:
-      // await fetch('/api/chat/learn', {
+      // await apiFetch('/api/chat/learn', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({
@@ -94,7 +94,7 @@ const ChatBox = ({ expanded, onClose, onExpand }: ChatBoxProps) => {
 
   const endChat = async () => {
     // TODO: Save conversation to backend
-    // await fetch('/api/chat/save', {
+    // await apiFetch('/api/chat/save', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({ conversation: messages })
