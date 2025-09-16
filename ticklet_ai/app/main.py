@@ -1,4 +1,7 @@
 from fastapi import FastAPI
+import signal, threading, time, os, sys, logging
+logger = logging.getLogger("ticklet.web")
+
 from ticklet_ai.config import settings
 try:
     from ticklet_ai.core.pipeline import scan_and_send_signals
@@ -7,6 +10,31 @@ except Exception:
 
 app = FastAPI()
 settings.validate_web()
+
+# --- Signal diagnostics ---
+def _signal_handler(signum, frame):
+    logger.error("⚠️ Received signal %s; pid=%s; exiting...", signum, os.getpid())
+try:
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+except Exception as e:
+    logger.warning("Signal handler setup failed: %s", e)
+
+# --- Startup/shutdown diagnostics ---
+@app.on_event("startup")
+async def _on_startup():
+    logger.info("✅ WEB startup: pid=%s, TZ=%s, scan_cron=%s", os.getpid(), settings.TZ, settings.SCAN_INTERVAL_CRON)
+    # background heartbeat (every 15s) so logs show liveness unless we're killed
+    def _beat():
+        while True:
+            logger.info("WEB heartbeat: alive pid=%s", os.getpid())
+            time.sleep(15)
+    t = threading.Thread(target=_beat, daemon=True, name="web-heartbeat")
+    t.start()
+
+@app.on_event("shutdown")
+async def _on_shutdown():
+    logger.error("🛑 WEB shutdown initiated: pid=%s", os.getpid())
 
 @app.get("/")
 def root():
@@ -36,6 +64,10 @@ def debug_env():
 @app.get("/debug/routes")
 def debug_routes():
     return [{"path": r.path, "methods": list(r.methods)} for r in app.routes]
+
+@app.get("/debug/ping")
+def debug_ping():
+    return {"pong": True}
 
 @app.post("/debug/run-scan-now")
 def run_scan_now():
