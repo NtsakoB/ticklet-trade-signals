@@ -127,8 +127,8 @@ async def favicon_debug_silence():
     return Response(status_code=204)
 
 @app.get("/debug/ping", tags=["debug"])
-def debug_ping():
-    return {"pong": True}
+async def debug_ping():
+    return {"ok": True}
 
 @app.get("/debug/env", tags=["debug"])
 async def debug_env(k: str | None = Query(default=None, description="Optional access key")):
