@@ -2,7 +2,9 @@ import os
 import logging
 import signal, threading, time, sys
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from ticklet_ai.config import settings
 try:
@@ -13,6 +15,12 @@ except Exception:
 logger = logging.getLogger("ticklet")
 logger.setLevel(logging.INFO)
 _ENV_GATE = os.getenv("DEBUG_ENV_KEY", "").strip()
+
+# Optional: allow overriding favicon path at deploy time
+FAVICON_PATH = Path(os.getenv("FAVICON_PATH", "assets/favicon.png"))
+
+# Ensure assets dir exists at runtime
+FAVICON_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # --- Safe env filtering helpers ---
 SAFE_EXACT = {
@@ -93,6 +101,12 @@ async def root_head():
 @app.head("/healthz", include_in_schema=False)
 async def healthz_head():
     return ""
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    if FAVICON_PATH.exists():
+        return FileResponse(FAVICON_PATH)
+    raise HTTPException(status_code=404, detail="Favicon not found")
 
 @app.get("/debug/env", tags=["debug"])
 async def debug_env(k: str | None = Query(default=None, description="Optional access key")):
