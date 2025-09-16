@@ -175,3 +175,20 @@ try:
     app.include_router(ghx_routes.router)
 except Exception:
     pass
+
+# Market router and settings endpoint
+try:
+    from ticklet_ai.app.routers.market import router as market_router
+    app.include_router(market_router)
+except Exception:
+    pass
+
+@app.get("/settings")
+async def settings():
+    return {
+        "ok": True,
+        "preview": False,
+        "binance": {"base_url": "https://api.binance.com"},
+        "ui": {"connectedLabel": "Connected to Binance API (Real Data)"},
+        "volume_filter": "≥$10M"
+    }
