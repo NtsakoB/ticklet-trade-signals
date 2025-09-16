@@ -33,6 +33,10 @@ def debug_env():
       "OPENAI_KEY_set": bool(settings.OPENAI_KEY)
     }
 
+@app.get("/debug/routes")
+def debug_routes():
+    return [{"path": r.path, "methods": list(r.methods)} for r in app.routes]
+
 @app.post("/debug/run-scan-now")
 def run_scan_now():
     if not scan_and_send_signals:
