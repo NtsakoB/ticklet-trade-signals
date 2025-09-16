@@ -1,7 +1,7 @@
 import os
 import logging
 import signal, threading, time, sys
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -103,10 +103,12 @@ async def healthz_head():
     return ""
 
 @app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    if FAVICON_PATH.exists():
-        return FileResponse(FAVICON_PATH)
-    raise HTTPException(status_code=404, detail="Favicon not found")
+async def favicon_silence():
+    return Response(status_code=204)
+
+@app.get("/debug/favicon.ico", include_in_schema=False)
+async def favicon_debug_silence():
+    return Response(status_code=204)
 
 @app.get("/debug/env", tags=["debug"])
 async def debug_env(k: str | None = Query(default=None, description="Optional access key")):
