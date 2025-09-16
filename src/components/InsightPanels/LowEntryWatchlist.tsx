@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -20,11 +21,7 @@ interface LowEntryOpportunity {
 }
 
 const fetchLowEntryWatchlist = async (): Promise<LowEntryOpportunity[]> => {
-  const response = await fetch("/api/low-entry-watchlist");
-  if (!response.ok) {
-    throw new Error("Failed to fetch low entry watchlist");
-  }
-  return response.json();
+  return await apiFetch("/api/low-entry-watchlist");
 };
 
 export const LowEntryWatchlist = () => {

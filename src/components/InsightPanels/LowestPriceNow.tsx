@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowDown } from "lucide-react";
@@ -22,11 +23,8 @@ export const LowestPriceNow = () => {
       try {
         setIsLoading(true);
         // Replace with actual API endpoint when backend is ready
-        const response = await fetch('/api/lowest-price');
-        if (response.ok) {
-          const data = await response.json();
-          setLowestPriceData(data);
-        }
+        const data = await apiFetch('/api/lowest-price');
+        setLowestPriceData(data);
       } catch (error) {
         console.error('Failed to fetch lowest price data:', error);
       } finally {

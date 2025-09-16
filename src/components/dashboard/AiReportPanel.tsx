@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +13,7 @@ export default function AiReportPanel() {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/report/latest`);
-      const json = await res.json();
+      const json = await apiFetch(`${API_URL}/api/report/latest`);
       setData(json);
       setError(false);
     } catch (err) {

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertTriangle } from "lucide-react";
@@ -21,11 +22,8 @@ export const MissedOpportunities = () => {
       try {
         setIsLoading(true);
         // Replace with actual API endpoint when backend is ready
-        const response = await fetch('/api/missed-opportunities');
-        if (response.ok) {
-          const data = await response.json();
-          setMissedOpportunities(data);
-        }
+        const data = await apiFetch('/api/missed-opportunities');
+        setMissedOpportunities(data);
       } catch (error) {
         console.error('Failed to fetch missed opportunities:', error);
       } finally {

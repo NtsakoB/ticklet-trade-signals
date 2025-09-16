@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -416,7 +417,7 @@ const SignalGenerator = ({
       const candles = data.candlestickData || [];
       if (candles.length > 0) {
         try {
-          const validationResponse = await fetch('/api/ticklet-ai/validate_signal', {
+          const validationResponse = await apiFetch('/api/ticklet-ai/validate_signal', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

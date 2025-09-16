@@ -23,7 +23,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-2">
-      <div className="text-xs rounded bg-amber-100 p-2">🔍 PREVIEW MODE – Live backend, no auth</div>
       <h1 className="text-2xl font-semibold">Ticklet Dashboard</h1>
       <div className="text-sm text-muted-foreground">{status}</div>
       <div className="text-sm">Signals run server-side; charts via backend proxy.</div>

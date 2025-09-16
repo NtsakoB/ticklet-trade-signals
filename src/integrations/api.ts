@@ -1,29 +1,28 @@
 import { API_BASE } from "@/config";
+import { apiFetch } from "@/lib/api";
 
 async function http(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}${path}`, { ...init, credentials: "omit" });
-  if (!res.ok) throw new Error(`API ${res.status} ${res.statusText}`);
-  return res.json();
+  return apiFetch(path, init);
 }
 
 export const api = {
-  health: () => http("/health"),
-  chat: (message: string) => http("/chat", {
+  health: () => http("/api/health"),
+  chat: (message: string) => http("/api/chat", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message })
   }),
   klines: (symbol: string, interval: string, limit = 200) =>
-    http(`/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`),
-  symbols: () => http("/market/symbols"),
-  settingsGet: () => http("/settings"),
-  settingsPut: (payload: any) => http("/settings", {
+    http(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`),
+  symbols: () => http("/api/market/symbols"),
+  settingsGet: () => http("/api/settings"),
+  settingsPut: (payload: any) => http("/api/settings", {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
   }),
-  generateSignal: () => http("/signals/generate", { method: "POST" }),
-  paperOrder: (payload: any) => http("/paper/order", {
+  generateSignal: () => http("/api/signals/generate", { method: "POST" }),
+  paperOrder: (payload: any) => http("/api/paper/order", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
   }),
-  paperState: () => http("/paper/state"),
+  paperState: () => http("/api/paper/state"),
   backtestRun: (symbol="BTCUSDT", interval="1h", bars=200) =>
-    http(`/backtest/run?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&bars=${bars}`),
+    http(`/api/backtest/run?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&bars=${bars}`),
 };

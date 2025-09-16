@@ -3,6 +3,7 @@ import logging
 import signal, threading, time, sys
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -79,6 +80,17 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Ticklet API shutting down")
 
 app = FastAPI(lifespan=lifespan)
+
+# Only needed for local dev when hitting http://localhost:8000 from Vite
+dev_origins = ["http://localhost:5173", "http://localhost:4173"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=dev_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 settings.validate_web()
 
 @app.get("/", include_in_schema=False)
@@ -109,6 +121,10 @@ async def favicon_silence():
 @app.get("/debug/favicon.ico", include_in_schema=False)
 async def favicon_debug_silence():
     return Response(status_code=204)
+
+@app.get("/debug/ping")
+def ping():
+    return {"ok": True}
 
 @app.get("/debug/env", tags=["debug"])
 async def debug_env(k: str | None = Query(default=None, description="Optional access key")):
