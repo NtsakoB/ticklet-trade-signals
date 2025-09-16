@@ -1,6 +1,8 @@
-from fastapi import FastAPI
-import signal, threading, time, os, sys, logging
-logger = logging.getLogger("ticklet.web")
+import os
+import logging
+import signal, threading, time, sys
+from fastapi import FastAPI, HTTPException, Query
+from contextlib import asynccontextmanager
 
 from ticklet_ai.config import settings
 try:
@@ -8,22 +10,55 @@ try:
 except Exception:
     scan_and_send_signals = None
 
-app = FastAPI()
-settings.validate_web()
+logger = logging.getLogger("ticklet")
+logger.setLevel(logging.INFO)
+_ENV_GATE = os.getenv("DEBUG_ENV_KEY", "").strip()
 
-# --- Signal diagnostics ---
-def _signal_handler(signum, frame):
-    logger.error("⚠️ Received signal %s; pid=%s; exiting...", signum, os.getpid())
-try:
-    signal.signal(signal.SIGTERM, _signal_handler)
-    signal.signal(signal.SIGINT, _signal_handler)
-except Exception as e:
-    logger.warning("Signal handler setup failed: %s", e)
+# --- Safe env filtering helpers ---
+SAFE_EXACT = {
+    "TZ", "PYTHON_VERSION", "RENDER_SERVICE_NAME", "RENDER_SERVICE_ID",
+    "RENDER_INSTANCE_ID", "RENDER_GIT_BRANCH", "RENDER", "PORT",
+    "GIT_COMMIT", "COMMIT_SHA", "ENV", "NODE_ENV", "APP_ENV",
+}
+SAFE_PREFIXES = ("ENABLE_", "FEATURE_", "FLAG_", "APP_", "SERVICE_", "UVICORN_")
+# Allow some project-scoped names that don't look like secrets
+SAFE_PROJECT_PREFIXES = ("TICKLET_",)
+SECRET_MARKERS = ("SECRET", "TOKEN", "KEY", "PASSWORD", "PASS", "PRIVATE", "ANON")
 
-# --- Startup/shutdown diagnostics ---
-@app.on_event("startup")
-async def _on_startup():
-    logger.info("✅ WEB startup: pid=%s, TZ=%s, scan_cron=%s", os.getpid(), settings.TZ, settings.SCAN_INTERVAL_CRON)
+def _looks_secret(name: str) -> bool:
+    upper = name.upper()
+    return any(m in upper for m in SECRET_MARKERS)
+
+def _is_safe_name(name: str) -> bool:
+    if name in SAFE_EXACT: return True
+    if _looks_secret(name): return False
+    if name.startswith(SAFE_PREFIXES): return True
+    # Project-scoped: allow if not "secret-looking"
+    if name.startswith(SAFE_PROJECT_PREFIXES) and not _looks_secret(name): return True
+    return False
+
+def _safe_env():
+    out = {}
+    for k, v in os.environ.items():
+        if _is_safe_name(k):
+            # Trim overly long values for safety/UX
+            sval = str(v)
+            out[k] = sval if len(sval) <= 200 else sval[:200] + "…"
+    return dict(sorted(out.items()))
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("✅ Ticklet API starting up")
+    
+    # --- Signal diagnostics ---
+    def _signal_handler(signum, frame):
+        logger.error("⚠️ Received signal %s; pid=%s; exiting...", signum, os.getpid())
+    try:
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+    except Exception as e:
+        logger.warning("Signal handler setup failed: %s", e)
+    
     # background heartbeat (every 15s) so logs show liveness unless we're killed
     def _beat():
         while True:
@@ -31,45 +66,66 @@ async def _on_startup():
             time.sleep(15)
     t = threading.Thread(target=_beat, daemon=True, name="web-heartbeat")
     t.start()
+    
+    yield
+    logger.info("🛑 Ticklet API shutting down")
 
-@app.on_event("shutdown")
-async def _on_shutdown():
-    logger.error("🛑 WEB shutdown initiated: pid=%s", os.getpid())
+app = FastAPI(lifespan=lifespan)
+settings.validate_web()
 
-@app.get("/")
-def root():
-    return {"ok": True, "service": "ticklet-web", "message": "Ticklet is alive. See /healthz and /debug/env."}
-
-@app.get("/healthz")
-def healthz():
-    return {"ok": True, "service": "ticklet-web"}
-
-@app.get("/debug/env")
-def debug_env():
+@app.get("/", include_in_schema=False)
+async def root():
     return {
-      "APP_ENV": settings.APP_ENV,
-      "TZ": settings.TZ,
-      "ENABLE_AI_TRAINING": settings.ENABLE_AI_TRAINING,
-      "ENABLE_PAPER_TRADING": settings.ENABLE_PAPER_TRADING,
-      "ENABLE_TELEGRAM": settings.ENABLE_TELEGRAM,
-      "SCAN_INTERVAL_CRON": settings.SCAN_INTERVAL_CRON,
-      "TRAINING_CRON": settings.TRAINING_CRON,
-      "SUPABASE_URL_set": bool(settings.SUPABASE_URL),
-      "SUPABASE_ANON_KEY_set": bool(settings.SUPABASE_ANON_KEY),
-      "SUPABASE_SERVICE_ROLE_KEY_set": bool(settings.SUPABASE_SERVICE_ROLE_KEY),
-      "BINANCE_KEY_set": bool(settings.BINANCE_KEY),
-      "OPENAI_KEY_set": bool(settings.OPENAI_KEY)
+        "status": "ok",
+        "service": "ticklet-ai",
+        "version": os.getenv("GIT_COMMIT", "dev"),
     }
 
-@app.get("/debug/routes")
-def debug_routes():
-    return [{"path": r.path, "methods": list(r.methods)} for r in app.routes]
+@app.get("/healthz", include_in_schema=False)
+async def healthz():
+    return {"ok": True}
 
-@app.get("/debug/ping")
+# Optional explicit HEAD handlers (FastAPI adds HEAD for GET, but this silences strict health checkers)
+@app.head("/", include_in_schema=False)
+async def root_head():
+    return ""
+
+@app.head("/healthz", include_in_schema=False)
+async def healthz_head():
+    return ""
+
+@app.get("/debug/env", tags=["debug"])
+async def debug_env(k: str | None = Query(default=None, description="Optional access key")):
+    """
+    Return a redacted/safe snapshot of environment variables.
+    If DEBUG_ENV_KEY is set in the environment, you must provide ?k=<that value>.
+    """
+    if _ENV_GATE:
+        if not k or k != _ENV_GATE:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    return {
+        "safe": True,
+        "count": len(_safe_env()),
+        "env": _safe_env(),
+    }
+
+@app.get("/debug/routes", tags=["debug"])
+async def debug_routes():
+    """List registered routes (method + path)."""
+    routes = []
+    for r in app.router.routes:
+        # Some routes (like Starlette routes) use 'methods'; guard safely
+        methods = sorted(getattr(r, "methods", set()) or [])
+        path = getattr(r, "path", None) or getattr(r, "path_format", None)
+        if path:
+            routes.append({"methods": methods, "path": path})
+    return {"count": len(routes), "routes": routes}
+
+@app.get("/debug/ping", tags=["debug"])
 def debug_ping():
     return {"pong": True}
 
-@app.post("/debug/run-scan-now")
+@app.post("/debug/run-scan-now", tags=["debug"])
 def run_scan_now():
     if not scan_and_send_signals:
         return {"ok": False, "error": "scan function unavailable"}
