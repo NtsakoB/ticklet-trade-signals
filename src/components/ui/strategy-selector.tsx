@@ -19,7 +19,9 @@ const strategyIcons = {
   'ticklet-alpha': Zap,
   'bull-strategy': TrendingUp,
   'jam-bot': Bot,
-  'golden-hook': TrendingUp
+  'golden-hook': TrendingUp,
+  'market-regime': Settings,
+  'condition-strategy': Bot
 } as const;
 
 const riskColors = {

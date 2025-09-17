@@ -173,6 +173,10 @@ except Exception:
 try:
     from ticklet_ai.app.routes import golden_hook_x as ghx_routes
     app.include_router(ghx_routes.router, prefix="/api/strategies/golden_hook_x", tags=["golden_hook"])
+    
+    # Include strategy listing router
+    from ticklet_ai.app.routes import strategies as strategies_router
+    app.include_router(strategies_router.router, tags=["strategies"])
 except Exception:
     pass
 

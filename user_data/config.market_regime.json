@@ -1,0 +1,11 @@
+{
+  "strategy": "MarketRegimeStrategy",
+  "timeframe": "30m",
+  "dry_run": true,
+  "stake_currency": "USDT",
+  "fiat_display_currency": "USD",
+  "process_only_new_candles": true,
+  "max_open_trades": 3,
+  "tradable_balance_ratio": 0.5,
+  "cancel_open_orders_on_exit": true
+}

@@ -118,5 +118,20 @@ def start_scheduler():
         name="Daily AI Report to Telegram Technician",
         replace_existing=True
     )
+    
+    # Add background data enrichment for strategies
+    try:
+        from ticklet_ai.tasks.collector import enrich_loop
+        scheduler.add_job(
+            enrich_loop,
+            CronTrigger.from_crontab("*/1 * * * *"),
+            id="data_enrichment_job", 
+            name="Background Data Enrichment",
+            replace_existing=True
+        )
+        logger.info("📊 Added background data enrichment job (every minute)")
+    except ImportError:
+        logger.warning("⚠️ Background data enrichment not available")
+    
     scheduler.start()
-    logger.info("⏰ Scheduler started: Daily AI Report at 10:00")
+    logger.info("⏰ Scheduler started: Daily AI Report at 10:00, Data Enrichment every minute")
