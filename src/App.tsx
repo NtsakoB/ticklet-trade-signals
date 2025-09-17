@@ -14,14 +14,19 @@ export default function App() {
     <StrategyProvider>
       <BrowserRouter>
         <Routes>
+          {/* Primary dashboard */}
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><Index /></RequireAuth>} />
+          {/* Health probe (debug-only) */}
+          <Route path="/__health" element={<div>OK</div>} />
+          {/* Other protected routes */}
           <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/backtest" element={<RequireAuth><Backtest /></RequireAuth>} />
           <Route path="/paper" element={<RequireAuth><Paper /></RequireAuth>} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          {/* SPA fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
