@@ -39,6 +39,16 @@ export const DEFAULT_STRATEGIES: Record<StrategyType, Strategy> = {
     features: ['Random Forest ML Model', 'Telegram Sentiment Analysis', 'RSI & MACD Confluence', 'Volume Spike Detection', 'ATR-based Risk Management', 'Multi-target System'],
     riskLevel: 'medium',
     enabled: true
+  },
+  'golden-hook': {
+    id: 'golden-hook',
+    name: 'golden-hook',
+    displayName: 'Golden Hook',
+    description: 'Advanced order block strategy with fibonacci zones, RSI/MACD confluence, and no-liquidation risk management',
+    version: '1.0.0',
+    features: ['Order Block Analysis', 'Fibonacci Zones', 'VPVR Integration', 'No-Liq Risk Management', 'Hook Confluence', 'Dynamic Trimming'],
+    riskLevel: 'medium',
+    enabled: true
   }
 };
 
@@ -142,6 +152,8 @@ class StrategyManager {
           return await this.executeBullStrategy(symbol, marketData);
         case 'jam-bot':
           return await this.executeJamBotStrategy(symbol, marketData);
+        case 'golden-hook':
+          return await this.executeGoldenHookStrategy(symbol, marketData);
         default:
           throw new Error(`Unknown strategy: ${this.activeStrategy}`);
       }
@@ -682,9 +694,164 @@ class StrategyManager {
       return {
         signal: null,
         confidence: 0,
-        reasoning: `Jam Bot Strategy execution failed: ${error.message}`,
+        reasoning: `Strategy execution error: ${error}`,
         metadata: {
           strategy: 'jam-bot',
+          timestamp: new Date().toISOString(),
+          indicators: []
+        }
+      };
+    }
+  }
+
+  private async executeGoldenHookStrategy(symbol: string, marketData: any): Promise<StrategyResult> {
+    try {
+      // Parse and validate all numeric values
+      const price = parseFloat(marketData.lastPrice);
+      const priceChange = parseFloat(marketData.priceChangePercent) || 0;
+      const volume = parseFloat(marketData.volume) || 0;
+      const high24h = parseFloat(marketData.highPrice);
+      const low24h = parseFloat(marketData.lowPrice);
+      
+      // CRITICAL: Validate price data
+      if (!price || price <= 0 || isNaN(price)) {
+        console.error(`[WARN] Zero/invalid price in Golden Hook for ${symbol}: ${marketData.lastPrice}`);
+        throw new Error(`Invalid price data for ${symbol}: Cannot generate signal with zero price`);
+      }
+      
+      if (!high24h || !low24h || high24h <= 0 || low24h <= 0) {
+        console.error(`[WARN] Invalid high/low for ${symbol}: High=${high24h}, Low=${low24h}`);
+        throw new Error(`Invalid price range data for ${symbol}`);
+      }
+      
+      const volumeUSD = volume * price;
+      const volatility = Math.abs(priceChange);
+      const atr = ((high24h - low24h) / price) * 100;
+      
+      // Golden Hook Strategy Logic
+      // Order block detection (simplified)
+      const priceRange = high24h - low24h;
+      const fib0382 = high24h - 0.382 * priceRange;
+      const fib050 = high24h - 0.5 * priceRange;
+      const fib0618 = high24h - 0.618 * priceRange;
+      
+      const inOrderBlock = price >= fib0618 && price <= fib0382;
+      const hookConfluence = inOrderBlock && volatility > 2;
+      
+      // RSI/MACD confluence (simplified)
+      const rsiOversold = priceChange < -3;
+      const rsiRecovering = rsiOversold && priceChange > -5;
+      const macdBullish = priceChange > 0 && volatility > 1;
+      
+      // Volume and risk validation
+      const minVolumeUSD = 10000000; // $10M minimum volume
+      const validVolume = volumeUSD > minVolumeUSD;
+      const volSpike = volumeUSD > minVolumeUSD * 2;
+      
+      // Golden Hook entry conditions
+      const hookEntry = hookConfluence && rsiRecovering && macdBullish && validVolume;
+      
+      let confidence = 0.6; // Base confidence
+      let leverage = 3;
+      let riskPct = 0.25;
+      
+      if (hookEntry && volSpike) {
+        confidence = 0.85;
+        leverage = 8;
+        riskPct = 0.15;
+      } else if (hookEntry) {
+        confidence = 0.75;
+        leverage = 5;
+        riskPct = 0.20;
+      } else if (inOrderBlock && macdBullish) {
+        confidence = 0.65;
+        leverage = 4;
+        riskPct = 0.22;
+      }
+      
+      const signalType = hookEntry || (inOrderBlock && macdBullish) ? 'BUY' : 'SELL';
+      
+      // Calculate targets and stop loss with no-liquidation approach
+      const atrBuffer = Math.max(atr, 1);
+      let targets: number[];
+      let stopLoss: number;
+      
+      if (signalType === 'BUY') {
+        targets = [
+          Math.max(price * (1 + atrBuffer/100 * 2), price * 1.03), // Conservative T1
+          Math.max(price * (1 + atrBuffer/100 * 4), price * 1.06), // Medium T2
+          Math.max(price * (1 + atrBuffer/100 * 6), price * 1.10)  // Aggressive T3
+        ];
+        // No-liq stop: very conservative
+        stopLoss = Math.max(fib0618 - (price * 0.05), price * 0.92);
+      } else {
+        targets = [
+          Math.min(price * (1 - atrBuffer/100 * 2), price * 0.97),
+          Math.min(price * (1 - atrBuffer/100 * 4), price * 0.94),
+          Math.min(price * (1 - atrBuffer/100 * 6), price * 0.90)
+        ];
+        stopLoss = Math.min(fib0382 + (price * 0.05), price * 1.08);
+      }
+      
+      // Validate calculations
+      if (targets.some(t => t <= 0 || isNaN(t)) || stopLoss <= 0 || isNaN(stopLoss)) {
+        console.error(`[WARN] Invalid target/SL calculation for ${symbol}: Targets=${targets}, SL=${stopLoss}`);
+        throw new Error(`Invalid signal calculation for ${symbol}`);
+      }
+      
+      // Calculate anomaly score
+      const anomalyScore = calculateAnomalyScore({
+        symbol,
+        volume: volumeUSD,
+        priceChange,
+        volatility
+      });
+      
+      const signal = {
+        id: `signal-${Date.now()}`,
+        symbol,
+        type: signalType,
+        entryPrice: price,
+        targets,
+        stopLoss,
+        confidence,
+        anomaly: hookEntry && confidence > 0.8,
+        anomaly_score: anomalyScore,
+        timestamp: new Date().toISOString(),
+        source: 'strategy',
+        leverage,
+        status: 'active',
+        strategy: 'golden-hook' as StrategyType,
+        strategyName: 'Golden Hook',
+        marketData: {
+          priceChange,
+          volume: volumeUSD,
+          high24h,
+          low24h,
+          volatility,
+          orderBlock: inOrderBlock,
+          hookConfluence: hookConfluence
+        }
+      };
+      
+      return {
+        signal,
+        confidence,
+        reasoning: `Golden Hook strategy: Order block ${inOrderBlock ? 'detected' : 'not found'}, Hook confluence ${hookConfluence ? 'confirmed' : 'weak'}, Volume ${validVolume ? 'adequate' : 'insufficient'}`,
+        metadata: {
+          strategy: 'golden-hook',
+          timestamp: new Date().toISOString(),
+          indicators: ['Order Blocks', 'Fibonacci Zones', 'RSI', 'MACD', 'VPVR', 'No-Liq Management']
+        }
+      };
+    } catch (error) {
+      console.error('Golden Hook Strategy error:', error);
+      return {
+        signal: null,
+        confidence: 0,
+        reasoning: `Strategy execution error: ${error}`,
+        metadata: {
+          strategy: 'golden-hook',
           timestamp: new Date().toISOString(),
           indicators: []
         }

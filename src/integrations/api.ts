@@ -25,4 +25,19 @@ export const api = {
   paperState: () => http("/api/paper/state"),
   backtestRun: (symbol="BTCUSDT", interval="1h", bars=200) =>
     http(`/api/backtest/run?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&bars=${bars}`),
+  
+  // Strategy-specific endpoints
+  strategySignals: (strategy: string, params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return http(`/api/strategies/${strategy}/signals${query ? `?${query}` : ""}`);
+  },
+  strategyBacktest: (strategy: string, payload: any) => http(`/api/strategies/${strategy}/backtest`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+  }),
+  strategyOptimize: (strategy: string, payload: any) => http(`/api/strategies/${strategy}/optimize`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+  }),
+  strategyAiInsights: (strategy: string, payload: any) => http(`/api/strategies/${strategy}/ai/insights`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+  }),
 };

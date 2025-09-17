@@ -18,7 +18,8 @@ interface StrategySelectorProps {
 const strategyIcons = {
   'ticklet-alpha': Zap,
   'bull-strategy': TrendingUp,
-  'jam-bot': Bot
+  'jam-bot': Bot,
+  'golden-hook': TrendingUp
 } as const;
 
 const riskColors = {
@@ -255,7 +256,8 @@ export function StrategyBadge({
   const Icon = strategyIcons[strategy];
   const displayName = strategyName || 
     (strategy === 'ticklet-alpha' ? 'Ticklet ALPHA' : 
-     strategy === 'bull-strategy' ? 'Bull Strategy' : 'Jam Bot');
+     strategy === 'bull-strategy' ? 'Bull Strategy' : 
+     strategy === 'jam-bot' ? 'Jam Bot' : 'Golden Hook');
   
   return (
     <Badge variant="outline" className={`flex items-center gap-1 ${className}`}>
