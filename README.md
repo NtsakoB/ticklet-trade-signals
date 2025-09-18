@@ -104,3 +104,22 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 - `GET /bg/status` — shows current settings & whether Supabase is on.
 **Output tables/files:**
 - `signals` and `features` in Supabase (schema configurable), or `./data/signals.csv`, `./data/features.csv`.
+
+## ML Pipeline (Unified, Supabase-first with CSV fallback)
+Tables/CSVs:
+- **signals**: one row per strategy pass (side, entries, stops, tps, anomaly, confidence, raw).
+- **features**: indicators snapshot per pass.
+- **trades**: one row per trade (open → updates → close), with `pnl_pct` and `win`.
+- **actions**: audit log for every action (bg_scan, trade_open, trade_update, trade_close, etc).
+Endpoints:
+- `POST /ml/train` → trains RF and appends learning-curve point.
+- `GET /ml/learning_curve` → curve JSON.
+- `GET /ml/status` → model existence & path.
+- `POST /ml/predict` → pass `{ "features": { ... } }` returns win-prob (0..1 as string).
+Hook usage (you MUST call these in your trader flow):
+- `on_entry_opened(trade_id, symbol, strategy, side, timeframe, entry, result)`
+- `on_trade_updated(trade_id, updates_dict)`
+- `on_trade_closed(trade_id, exit_price, hold_minutes, pnl_pct)` → triggers async training when enough rows exist.
+Notes:
+- Map adapters in this patch to your REAL function names/paths (no renames to your originals).
+- CSV fallbacks live under `./data/` if Supabase env is not set.

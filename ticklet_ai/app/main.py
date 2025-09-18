@@ -199,6 +199,18 @@ try:
 except Exception:
     pass
 
+# ML routes and initialization
+try:
+    from ticklet_ai.utils.paths import ensure_dirs
+    from ticklet_ai.app.routes import ml
+    app.include_router(ml.router)
+    
+    @app.on_event("startup")
+    def _ml_bootstrap():
+        ensure_dirs()
+except Exception:
+    pass
+
 @app.get("/settings")
 async def settings():
     return {

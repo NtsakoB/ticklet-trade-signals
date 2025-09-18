@@ -2,7 +2,7 @@ import os, time
 from apscheduler.schedulers.background import BackgroundScheduler
 from ..strategies.registry import list_strategies, run_strategy, get_strategy_symbols, get_strategy_timeframes
 from ..services.universe import explicit_env_symbols, default_auto_symbols
-from ..storage.repo import upsert_signal, upsert_features
+from ..storage.repo import upsert_signal, upsert_features, log_action
 from ..services.features import build_from_result
 
 def _env_timeframes() -> list[str]:
@@ -68,6 +68,9 @@ def start():
                     if not feats.get("ts_utc"):
                         feats["ts_utc"] = ts
                     upsert_features(feats)
+                    
+                    # Log background scan action
+                    log_action("bg_scan", {"ts_utc": ts, "symbol": sym, "strategy": sname, "timeframe": tf})
 
     sched.add_job(tick, "interval", seconds=interval, id="ticklet_bg_scan", max_instances=1, coalesce=True, misfire_grace_time=30)
     sched.start()

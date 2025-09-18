@@ -1,6 +1,11 @@
+scikit-learn==1.4.2
+xgboost==2.0.3
+joblib==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+tqdm==4.66.4
 apscheduler==3.10.4
 supabase==2.6.0
 python-dotenv==1.0.1
-pandas==2.2.2
-numpy==1.26.4
 requests==2.31.0
