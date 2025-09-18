@@ -187,6 +187,18 @@ try:
 except Exception:
     pass
 
+# Background runner startup and routes
+try:
+    from ticklet_ai.background.runner import start as start_bg
+    from ticklet_ai.app.routes.bg import router as bg_router
+    app.include_router(bg_router)
+    
+    @app.on_event("startup")
+    def _ticklet_bg_start():
+        start_bg()
+except Exception:
+    pass
+
 @app.get("/settings")
 async def settings():
     return {

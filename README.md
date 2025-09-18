@@ -88,3 +88,19 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 ### Notes
 - For multi-tenant per-user scoping, add a `owner_id uuid` column referencing `auth.users`
   and constrain policies with `auth.uid() = owner_id`. Not required for current single-tenant setup.
+
+## Background Strategy Runner (per-strategy universe)
+**Env (order matters):**
+- `TICKLET_BG_ENABLED` — enable/disable background loop
+- `TICKLET_BG_INTERVAL_SEC` — scan interval seconds (default 60)
+- `TICKLET_SYMBOLS` — comma list or `any` to auto-resolve per strategy
+- `TICKLET_TIMEFRAMES` — comma list (default `15m,30m,1h,1d`)
+- `TICKLET_SUPABASE_URL`, `TICKLET_SUPABASE_ANON_KEY`, `TICKLET_SUPABASE_SCHEMA` — if provided, writes to Supabase; else CSV fallback
+**Resolution rules:**
+1) If `TICKLET_SYMBOLS != any`, use that explicit list for all strategies.
+2) Else, use per-strategy configured lists when present.
+3) Else, auto-select top USDT pairs by 24h quote volume from Binance.
+**Endpoints:**
+- `GET /bg/status` — shows current settings & whether Supabase is on.
+**Output tables/files:**
+- `signals` and `features` in Supabase (schema configurable), or `./data/signals.csv`, `./data/features.csv`.
