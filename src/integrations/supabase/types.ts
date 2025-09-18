@@ -113,6 +113,35 @@ export type Database = {
         }
         Relationships: []
       }
+      engine_settings: {
+        Row: {
+          id: boolean
+          live_enabled: boolean
+          paper_enabled: boolean
+          paper_strategy: string
+        }
+        Insert: {
+          id?: boolean
+          live_enabled?: boolean
+          paper_enabled?: boolean
+          paper_strategy?: string
+        }
+        Update: {
+          id?: boolean
+          live_enabled?: boolean
+          paper_enabled?: boolean
+          paper_strategy?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engine_settings_paper_strategy_fkey"
+            columns: ["paper_strategy"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
       learning_entries: {
         Row: {
           context: Json
@@ -179,6 +208,72 @@ export type Database = {
         }
         Relationships: []
       }
+      paper_trades: {
+        Row: {
+          closed_at: string | null
+          entry_price: number
+          exit_price: number | null
+          id: string
+          leverage: number | null
+          opened_at: string
+          pnl: number | null
+          qty: number
+          reason_closed: string | null
+          side: string
+          signal_id: string | null
+          status: string
+          strategy: string
+          symbol: string
+        }
+        Insert: {
+          closed_at?: string | null
+          entry_price: number
+          exit_price?: number | null
+          id?: string
+          leverage?: number | null
+          opened_at?: string
+          pnl?: number | null
+          qty: number
+          reason_closed?: string | null
+          side: string
+          signal_id?: string | null
+          status?: string
+          strategy: string
+          symbol: string
+        }
+        Update: {
+          closed_at?: string | null
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          leverage?: number | null
+          opened_at?: string
+          pnl?: number | null
+          qty?: number
+          reason_closed?: string | null
+          side?: string
+          signal_id?: string | null
+          status?: string
+          strategy?: string
+          symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_trades_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "signals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_trades_strategy_fkey"
+            columns: ["strategy"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
       report_failures: {
         Row: {
           component: string
@@ -205,6 +300,41 @@ export type Database = {
           timestamp?: string
         }
         Relationships: []
+      }
+      signal_events: {
+        Row: {
+          at: string
+          details: Json | null
+          event: string
+          id: number
+          price: number | null
+          signal_id: string
+        }
+        Insert: {
+          at?: string
+          details?: Json | null
+          event: string
+          id?: number
+          price?: number | null
+          signal_id: string
+        }
+        Update: {
+          at?: string
+          details?: Json | null
+          event?: string
+          id?: number
+          price?: number | null
+          signal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_events_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "signals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       signal_scores: {
         Row: {
@@ -239,6 +369,74 @@ export type Database = {
           strategy?: string
           symbol?: string
           timestamp?: string | null
+        }
+        Relationships: []
+      }
+      signals: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          entry_price: number
+          id: string
+          meta: Json | null
+          reason_closed: string | null
+          stage: string
+          status: string
+          stop_price: number
+          strategy: string
+          symbol: string
+          targets: Json
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price: number
+          id?: string
+          meta?: Json | null
+          reason_closed?: string | null
+          stage?: string
+          status: string
+          stop_price: number
+          strategy: string
+          symbol: string
+          targets: Json
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price?: number
+          id?: string
+          meta?: Json | null
+          reason_closed?: string | null
+          stage?: string
+          status?: string
+          stop_price?: number
+          strategy?: string
+          symbol?: string
+          targets?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_strategy_fkey"
+            columns: ["strategy"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      strategies: {
+        Row: {
+          active: boolean
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          name: string
+        }
+        Update: {
+          active?: boolean
+          name?: string
         }
         Relationships: []
       }
