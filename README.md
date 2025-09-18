@@ -71,3 +71,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Strategy-led Signals & Paper/Live Toggles
+- Signals are created/closed *only* by the selected strategy; entry_price is frozen at creation.
+- Paper trades mirror the chosen strategy using live data. Use **/api/settings** to toggle and select strategy.
+- Migration runs automatically on startup and is idempotent for Render.
+
+## Supabase RLS (September 18, 2025)
+- RLS is **enabled** on: `strategies`, `signals`, `signal_events`, `paper_trades`, `engine_settings`.
+- Default posture: **locked** (no policies). Frontend should use **FastAPI**; backend continues to work
+  via Postgres superuser connection or Supabase **service role** (both bypass RLS).
+- If you later need direct Supabase reads from the browser for authenticated users, uncomment ONE of
+  the optional `... for select to authenticated using (true)` policies in
+  `supabase/migrations/2025-09-18_rls_enable.sql`, then deploy.
+
+### Notes
+- For multi-tenant per-user scoping, add a `owner_id uuid` column referencing `auth.users`
+  and constrain policies with `auth.uid() = owner_id`. Not required for current single-tenant setup.
