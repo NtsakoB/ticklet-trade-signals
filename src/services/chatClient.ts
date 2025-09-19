@@ -18,11 +18,11 @@ async function retryFetch(url: string, init: RequestInit, attempts = 2, backoff 
   throw lastErr;
 }
 
-export async function askChat(messages: ChatMessage[], opts?: { strategy?: string; mode?: "paper"|"live" }) {
+export async function askChat(messages: ChatMessage[], opts?: { strategy?: string; mode?: "paper"|"live"; session_id?: string }) {
   const res = await retryFetch("/api/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, strategy: opts?.strategy, mode: opts?.mode, allow_general: true }),
+    body: JSON.stringify({ messages, strategy: opts?.strategy, mode: opts?.mode, allow_general: true, session_id: opts?.session_id }),
   });
   return res.json() as Promise<{ content: string; tool_calls: string[] }>;
 }

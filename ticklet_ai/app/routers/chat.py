@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     strategy: Optional[str] = None
     mode: Optional[str] = None
     allow_general: bool = True
+    session_id: Optional[str] = None
 
 # BACKEND_URL comes from environment; when running monolith we allow relative
 BACKEND_URL = os.getenv("BACKEND_URL", "").rstrip("/")
@@ -122,8 +123,37 @@ async def chat(req: ChatRequest):
     if client is None:
         raise HTTPException(500, "OPENAI_API_KEY is not configured.")
 
+    # Ensure session_id exists (implicit session if not provided)
+    session_id = req.session_id
+    if not session_id:
+        try:
+            from ticklet_ai.app.db import get_pool
+            import json as _json
+            pool = await get_pool()
+            async with pool.acquire() as con:
+                first_user = next((m.content for m in req.messages if m.role == "user"), None)
+                meta = {"strategy": req.strategy, "mode": req.mode}
+                row = await con.fetchrow(
+                    "insert into chat_sessions(title, meta) values($1,$2) returning id",
+                    (first_user[:60] + "…") if first_user else None,
+                    meta
+                )
+                session_id = str(row["id"])
+        except Exception:
+            session_id = None
+
     base_msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
     msgs = base_msgs + [m.model_dump() for m in req.messages]
+
+    # Save all incoming messages (user/system) to history
+    if session_id:
+        try:
+            from ticklet_ai.app.routers.chat_store import save_message
+            for m in req.messages:
+                if m.role in ("user","system"):
+                    await save_message(session_id, m.role, m.content)
+        except Exception:
+            pass
 
     try:
         first = client.chat.completions.create(
@@ -144,6 +174,13 @@ async def chat(req: ChatRequest):
             args = json.loads(call.function.arguments or "{}")
             data = await dispatch_tool(call.function.name, args)
             tool_msgs.append({"role":"tool","tool_call_id":call.id,"name":call.function.name,"content":json.dumps(data)[:8000]})
+            # persist tool outputs
+            if session_id:
+                try:
+                    from ticklet_ai.app.routers.chat_store import save_message
+                    await save_message(session_id, "tool", tool_msgs[-1]["content"], tool_name=call.function.name)
+                except Exception:
+                    pass
         except Exception as e:
             tool_msgs.append({"role":"tool","tool_call_id":call.id,"name":call.function.name,"content":json.dumps({"error":str(e)})})
 
@@ -154,10 +191,24 @@ async def chat(req: ChatRequest):
                 messages=msgs + [m.model_dump()] + tool_msgs,
                 temperature=0.2,
             )
+            # save assistant final
+            if session_id:
+                try:
+                    from ticklet_ai.app.routers.chat_store import save_message
+                    await save_message(session_id, "assistant", second.choices[0].message.content)
+                except Exception:
+                    pass
             return {"content": second.choices[0].message.content, "tool_calls": [t["name"] for t in tool_msgs]}
         except Exception as e:
             # If follow-up completion fails, degrade gracefully with raw tool data
             merged = "\n\n".join([t["content"] for t in tool_msgs])
             return {"content": f"(Degraded mode) Tools data:\n{merged}", "tool_calls": [t["name"] for t in tool_msgs]}
     else:
+        # save assistant no-tool reply
+        if session_id:
+            try:
+                from ticklet_ai.app.routers.chat_store import save_message
+                await save_message(session_id, "assistant", m.content)
+            except Exception:
+                pass
         return {"content": m.content, "tool_calls": []}

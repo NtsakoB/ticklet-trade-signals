@@ -201,8 +201,9 @@ except Exception:
 
 # Chat router
 try:
-    from ticklet_ai.app.routers import chat
+    from ticklet_ai.app.routers import chat, chat_store
     app.include_router(chat.router)
+    app.include_router(chat_store.router)
 except Exception as e:
     # Do not crash startup if chat router import fails; log and continue.
     logger.error("Chat router not mounted: %s", e)

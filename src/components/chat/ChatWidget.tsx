@@ -4,18 +4,66 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Maximize2, Minimize2 } from "lucide-react";
 import { useChat } from "./ChatProvider";
 import { askChat, ChatMessage } from "@/services/chatClient";
+import { ChatStore } from "@/services/chatStoreClient";
 
 const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className = "", ...props }) => (
   <div className={`bg-card border border-border rounded-2xl shadow-xl ${className}`} {...props} />
 );
 
+// global session id holder (simple)
+declare global { interface Window { __CHAT_SESSION_ID?: string } }
+
+type Msg = { role:"user"|"assistant"; content:string };
+
 export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>= ({ strategy, mode }) => {
+  // chat state
   const { open, fullscreen, closeChat, toggleFullscreen } = useChat();
-  const [msgs, setMsgs] = React.useState<{role:"user"|"assistant"; content:string}[]>([
-    { role:"assistant" as const, content:"What would you like to do?" },
-    { role:"assistant" as const, content:"Ticklet is an advanced trading bot." },
+  const [msgs, setMsgs] = React.useState<Msg[]>([
+    { role:"assistant", content:"What would you like to do?" },
+    { role:"assistant", content:"Ticklet is an advanced trading bot." },
   ]);
   const [busy, setBusy] = React.useState(false);
+  const [input, setInput] = React.useState("");
+
+  // history state
+  const [showHistory, setShowHistory] = React.useState(false);
+  const [sessions, setSessions] = React.useState<any[]>([]);
+  const [selSession, setSelSession] = React.useState<any | null>(null);
+  const [histMsgs, setHistMsgs] = React.useState<any[]>([]);
+  const [histLoading, setHistLoading] = React.useState(false);
+
+  // session bootstrap for persistence
+  React.useEffect(()=>{ (async ()=>{
+    try {
+      if (!(window as any).__CHAT_SESSION_ID) {
+        const s = await ChatStore.createSession("Ticklet dashboard chat", { strategy, mode });
+        (window as any).__CHAT_SESSION_ID = s.id;
+      }
+    } catch {}
+  })(); }, [strategy, mode]);
+
+  async function refreshHistory() {
+    try {
+      const s = await ChatStore.listSessions();
+      setSessions(s);
+      if (s.length && !selSession) {
+        setSelSession(s[0]);
+      }
+    } catch {}
+  }
+
+  React.useEffect(()=>{ if (showHistory) { refreshHistory(); } }, [showHistory]);
+
+  React.useEffect(()=>{ (async()=>{
+    if (!showHistory || !selSession) return;
+    setHistLoading(true);
+    try {
+      const m = await ChatStore.listMessages(selSession.id);
+      setHistMsgs(m);
+    } finally {
+      setHistLoading(false);
+    }
+  })(); }, [showHistory, selSession]);
 
   async function handleSend(text: string) {
     const next = [...msgs, { role:"user" as const, content: text }];
@@ -24,7 +72,7 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
     try {
       const { content } = await askChat(
         [{ role:"system", content:"You are in the Ticklet dashboard." }, ...next as ChatMessage[]],
-        { strategy, mode }
+        { strategy, mode, session_id: (window as any).__CHAT_SESSION_ID }
       );
       setMsgs([...next, { role:"assistant" as const, content }]);
     } catch (e:any) {
@@ -34,7 +82,6 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
     }
   }
 
-  const [input, setInput] = React.useState("");
 
   return createPortal(
     <AnimatePresence>
@@ -71,12 +118,12 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
                   </div>
                   <div>
                     <p className="text-foreground font-semibold leading-none">Ticklet Bot</p>
-                    <p className="text-xs text-muted-foreground leading-none mt-1">
-                      {busy ? "Thinking..." : "Happy to help"}
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={async ()=>{ try { if (window.__CHAT_SESSION_ID) { await ChatStore.endSession(window.__CHAT_SESSION_ID); } } catch(e){} finally { /* close like minimize */ closeChat(); }}} className="px-2 py-1 rounded-md hover:bg-accent text-xs border border-border">
+                    End chat
+                  </button>
                   <button 
                     onClick={toggleFullscreen} 
                     className="p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground" 
@@ -95,7 +142,63 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                {msgs.map((m, i) => (
+                {/* HISTORY OVERLAY (replaces chat content when showHistory) */}
+                {showHistory ? (
+                  <div className="absolute inset-0 bg-card">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                      <div className="text-foreground font-semibold">Chat History</div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={()=>{ setShowHistory(false); }} 
+                          className="px-3 py-2 rounded-md hover:bg-accent transition-colors border border-border text-sm"
+                        >
+                          Close History
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 h-[calc(100%-56px)]">
+                      {/* Sessions */}
+                      <div className="bg-muted border border-border rounded-xl overflow-hidden">
+                        <div className="px-3 py-2 border-b border-border text-muted-foreground text-sm">Sessions</div>
+                        <div className="max-h-full overflow-y-auto p-2 space-y-1">
+                          {sessions.map(s=>(
+                            <button key={s.id}
+                              onClick={()=>setSelSession(s)}
+                              className={`w-full text-left px-3 py-2 rounded-lg hover:bg-accent ${selSession?.id===s.id?"bg-accent":""}`}>
+                              <div className="text-foreground text-sm">{s.title || s.id.slice(0,8)}</div>
+                              <div className="text-muted-foreground text-xs">{new Date(s.created_at).toLocaleString()} {s.ended_at?"• ended":""}</div>
+                            </button>
+                          ))}
+                          {!sessions.length && <div className="text-muted-foreground text-sm px-2 py-3">No sessions yet.</div>}
+                        </div>
+                      </div>
+
+                      {/* Messages */}
+                      <div className="lg:col-span-2 bg-muted border border-border rounded-xl overflow-hidden">
+                        <div className="px-3 py-2 border-b border-border text-muted-foreground text-sm">
+                          {selSession ? (selSession.title || selSession.id) : "Messages"}
+                        </div>
+                        <div className="h-full max-h-full overflow-y-auto p-3 space-y-3">
+                          {histLoading && <div className="text-muted-foreground text-sm">Loading…</div>}
+                          {!histLoading && selSession && histMsgs.map(m=>(
+                            <div key={m.id} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role==="assistant"?"bg-muted text-foreground":"bg-primary text-primary-foreground"} ${m.role!=="assistant"?"ml-auto":""}`}>
+                              <div className="text-xs opacity-70 mb-1">
+                                {new Date(m.created_at).toLocaleString()} • {m.role}{m.tool_name?` • ${m.tool_name}`:""}
+                              </div>
+                              {m.content}
+                            </div>
+                          ))}
+                          {!histLoading && selSession && !histMsgs.length && (
+                            <div className="text-muted-foreground text-sm">No messages in this session.</div>
+                          )}
+                          {!selSession && <div className="text-muted-foreground text-sm">Select a session to view messages.</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                {!showHistory && msgs.map((m, i) => (
                   <div 
                     key={i} 
                     className={`max-w-[85%] rounded-xl px-3 py-2 text-sm shadow ${
@@ -113,12 +216,13 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
                 <form 
                   onSubmit={(e)=>{ 
                     e.preventDefault(); 
+                    if(showHistory) return; 
                     if(!input.trim()) return; 
                     const v=input.trim(); 
                     setInput(""); 
                     handleSend(v); 
                   }} 
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2" style={{ alignItems:'stretch' }}
                 >
                   <input 
                     name="q" 
@@ -135,6 +239,15 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
                     {busy ? "..." : "Send"}
                   </button>
                 </form>
+                <div className="mt-2 flex justify-between">
+                  <button
+                    type="button"
+                    onClick={()=>{ setShowHistory(true); if(!fullscreen) toggleFullscreen(); }}
+                    className="rounded-xl px-3 py-2 text-sm bg-muted hover:bg-accent transition-colors border border-border"
+                  >
+                    History
+                  </button>
+                </div>
               </div>
             </Card>
           </motion.div>
