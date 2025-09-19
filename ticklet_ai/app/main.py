@@ -86,7 +86,7 @@ from ticklet_ai.app.routers.health import router as health_router
 app.include_router(health_router, prefix="/api/health")
 
 # Dev-only CORS (prod uses same-origin via Vercel rewrite)
-DEV_ORIGINS = ["http://localhost:5173", "http://localhost:4173"]
+DEV_ORIGINS = ["http://localhost:5173", "http://localhost:4173", "http://localhost:8080"]
 
 try:
     app.add_middleware(

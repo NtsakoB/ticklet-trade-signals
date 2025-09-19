@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/api";
+
 export type UISignal = {
   id: string;
   symbol: string;
@@ -11,9 +13,5 @@ export type UISignal = {
 };
 
 export async function fetchSignals(type: "trade" | "recent" | "low_entry" | "missed" | "low_price"): Promise<UISignal[]> {
-  const res = await fetch(`/api/signals?type=${type}`, {
-    headers: { Accept: "application/json" }
-  });
-  if (!res.ok) throw new Error(`fetchSignals failed: ${res.status}`);
-  return res.json();
+  return apiFetch(`/api/signals?type=${type}`);
 }
