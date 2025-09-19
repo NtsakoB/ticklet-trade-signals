@@ -22,3 +22,6 @@ aiofiles==23.2.1
 
 # --- Network requests ---
 requests==2.31.0
+
+# --- Database drivers ---
+asyncpg>=0.28
