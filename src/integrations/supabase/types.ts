@@ -436,46 +436,73 @@ export type Database = {
       }
       signals: {
         Row: {
+          ai_summary: string | null
+          anomaly: number | null
           closed_at: string | null
+          confidence: number | null
           created_at: string
           entry_price: number
           id: string
+          leverage: number | null
+          low_entry: boolean | null
           meta: Json | null
+          price_distance: number | null
           reason_closed: string | null
+          side: string | null
           stage: string
           status: string
+          stop_loss: number | null
           stop_price: number
           strategy: string
           symbol: string
           targets: Json
+          volatility_pct: number | null
         }
         Insert: {
+          ai_summary?: string | null
+          anomaly?: number | null
           closed_at?: string | null
+          confidence?: number | null
           created_at?: string
           entry_price: number
           id?: string
+          leverage?: number | null
+          low_entry?: boolean | null
           meta?: Json | null
+          price_distance?: number | null
           reason_closed?: string | null
+          side?: string | null
           stage?: string
           status: string
+          stop_loss?: number | null
           stop_price: number
           strategy: string
           symbol: string
           targets: Json
+          volatility_pct?: number | null
         }
         Update: {
+          ai_summary?: string | null
+          anomaly?: number | null
           closed_at?: string | null
+          confidence?: number | null
           created_at?: string
           entry_price?: number
           id?: string
+          leverage?: number | null
+          low_entry?: boolean | null
           meta?: Json | null
+          price_distance?: number | null
           reason_closed?: string | null
+          side?: string | null
           stage?: string
           status?: string
+          stop_loss?: number | null
           stop_price?: number
           strategy?: string
           symbol?: string
           targets?: Json
+          volatility_pct?: number | null
         }
         Relationships: [
           {
