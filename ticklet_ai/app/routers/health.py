@@ -10,9 +10,9 @@ async def chat_health():
     """Verify that OpenAI key is loaded at runtime."""
     s = get_settings()
     return {
-        "ok": bool(s.OPENAI_API_KEY),
-        "model": s.OPENAI_MODEL,
-        "has_key": bool(s.OPENAI_API_KEY),
+        "ok": bool(getattr(s, 'OPENAI_API_KEY', None) or getattr(s, 'OPENAI_KEY', None)),
+        "model": getattr(s, 'OPENAI_MODEL', 'gpt-4o-mini'),
+        "has_key": bool(getattr(s, 'OPENAI_API_KEY', None) or getattr(s, 'OPENAI_KEY', None)),
     }
 
 @router.get("/db")
@@ -32,7 +32,7 @@ async def db_health():
 async def root_health():
     """Summary of system health (OpenAI + DB)."""
     s = get_settings()
-    out = {"chat_ok": bool(s.OPENAI_API_KEY)}
+    out = {"chat_ok": bool(getattr(s, 'OPENAI_API_KEY', None) or getattr(s, 'OPENAI_KEY', None))}
     try:
         conn_str = os.getenv("DATABASE_URL")
         if conn_str:

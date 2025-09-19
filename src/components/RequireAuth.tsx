@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { REQUIRE_LOGIN } from "../config";
 
 export default function RequireAuth({ children }: { children: JSX.Element }) {
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
+    // If login not required, bypass auth
+    if (!REQUIRE_LOGIN) {
+      setAuthed(true);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       if (!cancelled) { setAuthed(!!data.session); setLoading(false); }

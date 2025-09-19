@@ -5,6 +5,7 @@ import { X, Maximize2, Minimize2 } from "lucide-react";
 import { useChat } from "./ChatProvider";
 import { askChat, ChatMessage } from "@/services/chatClient";
 import { ChatStore } from "@/services/chatStoreClient";
+import { apiFetch } from "@/lib/api";
 
 const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className = "", ...props }) => (
   <div className={`bg-card border border-border rounded-2xl shadow-xl ${className}`} {...props} />
@@ -70,13 +71,26 @@ export const ChatWidget: React.FC<{ strategy?: string; mode?: "paper"|"live" }>=
     setMsgs(next);
     setBusy(true);
     try {
+      // Check if chat service is available first
+      const healthCheck = await apiFetch("/api/health/chat");
+      if (!healthCheck.ok) {
+        setMsgs([...next, { 
+          role:"assistant" as const, 
+          content: "Sorry, the chat service is not configured. OpenAI key is required for chat functionality." 
+        }]);
+        return;
+      }
+      
       const { content } = await askChat(
         [{ role:"system", content:"You are in the Ticklet dashboard." }, ...next as ChatMessage[]],
         { strategy, mode, session_id: (window as any).__CHAT_SESSION_ID }
       );
       setMsgs([...next, { role:"assistant" as const, content }]);
     } catch (e:any) {
-      setMsgs([...next, { role:"assistant" as const, content: "Sorry, I couldn't reach the chat service. Please try again." }]);
+      setMsgs([...next, { 
+        role:"assistant" as const, 
+        content: "Sorry, I couldn't reach the chat service. The OpenAI integration may not be configured." 
+      }]);
     } finally {
       setBusy(false);
     }
