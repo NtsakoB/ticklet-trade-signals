@@ -289,6 +289,10 @@ from ticklet_ai.app.routers import signals_unified as signals_unified_router
 from ticklet_ai.app.routers import dashboard as dashboard_router
 from ticklet_ai.app.routers import chat as chat_router
 
+# NEW: Signals persistence router
+from ticklet_ai.app.routers import signals as signals_router
+app.include_router(signals_router.router)
+
 app.include_router(signals_unified_router.router)
 app.include_router(signals_unified_router.legacy_router)  # exposes /signals (legacy)
 app.include_router(dashboard_router.router)
