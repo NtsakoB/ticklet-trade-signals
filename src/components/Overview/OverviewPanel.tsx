@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import TradeSignalsTable from "./TradeSignalsTable";
 import SignalList from "./SignalList";
-import { fetchSignals, UISignal } from "@/services/signalsApi";
+import { SignalsService, UnifiedSignal, SignalType } from "@/services/signalsService";
 
 export default function OverviewPanel() {
-  const [recent, setRecent] = useState<UISignal[]>([]);
-  const [lowEntry, setLowEntry] = useState<UISignal[]>([]);
-  const [missed, setMissed] = useState<UISignal[]>([]);
-  const [lowPrice, setLowPrice] = useState<UISignal[]>([]);
+  const [recent, setRecent] = useState<UnifiedSignal[]>([]);
+  const [lowEntry, setLowEntry] = useState<UnifiedSignal[]>([]);
+  const [missed, setMissed] = useState<UnifiedSignal[]>([]);
+  const [lowPrice, setLowPrice] = useState<UnifiedSignal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,10 +15,10 @@ export default function OverviewPanel() {
     (async () => {
       try {
         const [b,c,d,e] = await Promise.all([
-          fetchSignals("recent"),
-          fetchSignals("low_entry"),
-          fetchSignals("missed"),
-          fetchSignals("low_price"),
+          SignalsService.fetchSignals("recent"),
+          SignalsService.fetchSignals("low_entry"),
+          SignalsService.fetchSignals("missed"),
+          SignalsService.fetchSignals("lowest"),
         ]);
         if (!alive) return;
         setRecent(b); setLowEntry(c); setMissed(d); setLowPrice(e);

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { UISignal, fetchSignals } from "@/services/signalsApi";
+import { SignalsService, UnifiedSignal } from "@/services/signalsService";
 
 export default function TradeSignalsTable() {
-  const [rows, setRows] = useState<UISignal[]>([]);
+  const [rows, setRows] = useState<UnifiedSignal[]>([]);
   const [q, setQ] = useState("");
 
   useEffect(() => {
     let alive = true;
-    fetchSignals("trade").then((d) => { if (alive) setRows(d); });
+    SignalsService.fetchSignals("active").then((d) => { if (alive) setRows(d); });
     return () => { alive = false; };
   }, []);
 
@@ -16,7 +16,7 @@ export default function TradeSignalsTable() {
     if (!qq) return rows;
     return rows.filter(r =>
       r.symbol.toLowerCase().includes(qq) ||
-      (r.title ?? "").toLowerCase().includes(qq)
+      r.title.toLowerCase().includes(qq)
     );
   }, [rows, q]);
 
@@ -41,11 +41,11 @@ export default function TradeSignalsTable() {
         ) : filtered.map((s) => (
           <div key={s.id} className="grid grid-cols-6 px-3 py-3 text-sm border-t border-gray-800">
             <div className="font-medium">{s.symbol}</div>
-            <div>{s.subtitle ?? "-"}</div>
-            <div>{typeof s.price === "number" ? `$${s.price.toLocaleString()}` : "-"}</div>
-            <div className="text-xs text-blue-300">{s.title ?? "-"}</div>
-            <div className="text-xs text-red-300">{/* stop placeholder if provided via tags or subtitle */}</div>
-            <div className="text-xs text-gray-300">{s.time ?? "-"}</div>
+            <div>{s.subtitle}</div>
+            <div>${s.price.toLocaleString()}</div>
+            <div className="text-xs text-blue-300">{s.title}</div>
+            <div className="text-xs text-red-300">${s.stop_loss > 0 ? s.stop_loss.toFixed(2) : '-'}</div>
+            <div className="text-xs text-gray-300">{s.time}</div>
           </div>
         ))}
       </div>

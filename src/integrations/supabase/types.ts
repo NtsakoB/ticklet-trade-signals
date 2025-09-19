@@ -740,6 +740,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      classify_missed_signals: {
+        Args: { p_minutes?: number }
+        Returns: number
+      }
       debug_team_membership: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -759,6 +763,14 @@ export type Database = {
       is_team_member: {
         Args: { p_team_id: number; p_user_id: string }
         Returns: boolean
+      }
+      mark_low_entry: {
+        Args: { p_buffer?: number; p_current: number; p_symbol: string }
+        Returns: undefined
+      }
+      update_price_distance: {
+        Args: { p_current: number; p_symbol: string }
+        Returns: undefined
       }
     }
     Enums: {

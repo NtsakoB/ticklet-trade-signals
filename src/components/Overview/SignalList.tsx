@@ -1,8 +1,8 @@
-import { UISignal } from "@/services/signalsApi";
+import { UnifiedSignal } from "@/services/signalsService";
 
 export default function SignalList({
   items, height = "max-h-80", scroll = false, emptyText = "No items",
-}: { items: UISignal[]; height?: string; scroll?: boolean; emptyText?: string }) {
+}: { items: UnifiedSignal[]; height?: string; scroll?: boolean; emptyText?: string }) {
   const container = scroll ? `${height} overflow-auto` : "";
   return (
     <div className={`bg-[#111827] rounded-2xl p-4 ${container}`}>

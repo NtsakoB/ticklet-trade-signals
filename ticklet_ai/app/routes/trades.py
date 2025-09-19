@@ -4,52 +4,28 @@ import datetime
 
 router = APIRouter(prefix="/api", tags=["trades"])
 
-# Mock data for now - in real implementation, this would connect to your actual trading services
-def get_mock_trades(mode: str, strategy: str = None) -> List[Dict[str, Any]]:
-    """Mock trade data - replace with actual service calls"""
-    base_trades = [
-        {
-            "id": f"{mode}-1",
-            "symbol": "BTCUSDT",
-            "side": "long" if mode == "paper" else "buy",
-            "strategy": strategy or "TickletAlpha",
-            "pnl_abs": 125.50 if mode == "paper" else 89.30,
-            "pnl_pct": 2.45 if mode == "paper" else 1.78,
-            "time": "2024-01-15 14:30:00",
-            "status": "closed",
-            "leverage": 10
-        },
-        {
-            "id": f"{mode}-2", 
-            "symbol": "ETHUSDT",
-            "side": "short" if mode == "paper" else "sell",
-            "strategy": strategy or "TickletAlpha",
-            "pnl_abs": -45.20 if mode == "paper" else -32.10,
-            "pnl_pct": -1.23 if mode == "paper" else -0.89,
-            "time": "2024-01-15 13:15:00",
-            "status": "closed",
-            "leverage": 5
-        },
-        {
-            "id": f"{mode}-3",
-            "symbol": "ADAUSDT", 
-            "side": "long" if mode == "paper" else "buy",
-            "strategy": strategy or "TickletAlpha",
-            "pnl_abs": None,
-            "pnl_pct": None,
-            "time": "2024-01-15 15:45:00",
-            "status": "open",
-            "leverage": 8
-        }
-    ]
-    
-    # Add timestamp variation
-    now = datetime.datetime.now()
-    for i, trade in enumerate(base_trades):
-        timestamp = now - datetime.timedelta(hours=i+1)
-        trade["time"] = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    
-    return base_trades
+import os
+from supabase import create_client, Client
+
+def get_supabase_client() -> Client:
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    return create_client(url, key)
+
+def get_trades_from_db(mode: str, strategy: str = None) -> List[Dict[str, Any]]:
+    """Fetch trades from Supabase database"""
+    try:
+        supabase = get_supabase_client()
+        query = supabase.table("trades").select("*").eq("mode", mode)
+        
+        if strategy:
+            query = query.eq("strategy", strategy)
+            
+        response = query.order("opened_at", desc=True).limit(50).execute()
+        return response.data or []
+    except Exception as e:
+        # Return empty list on error to prevent UI breakage
+        return []
 
 @router.get("/trades")
 def list_trades(mode: str = Query(..., pattern="^(paper|live)$"),
@@ -59,26 +35,21 @@ def list_trades(mode: str = Query(..., pattern="^(paper|live)$"),
     # For live trades: integrate with your existing live trading service
     
     try:
-        if mode == "paper":
-            # rows = get_paper_trades(strategy=strategy) or []
-            rows = get_mock_trades("paper", strategy)
-        else:
-            # rows = get_live_trades(strategy=strategy) or []
-            rows = get_mock_trades("live", strategy)
+        rows = get_trades_from_db(mode, strategy)
             
         # Normalize shape expected by frontend
         out = []
         for t in rows:
             out.append({
-                "id": str(t.get("id") or t.get("trade_id") or t.get("txid") or f"{t.get('symbol','?')}-{t.get('time','?')}"),
+                "id": str(t.get("id", "")),
                 "symbol": t.get("symbol", "-"),
-                "side": t.get("side", t.get("position_side", "-")),
-                "strategy": t.get("strategy"),
+                "side": t.get("side", "-"),
+                "strategy": t.get("strategy", "-"),
                 "pnl_abs": t.get("pnl_abs"),
                 "pnl_pct": t.get("pnl_pct"),
-                "time": t.get("time"),
-                "status": t.get("status"),
-                "leverage": t.get("leverage"),
+                "time": t.get("opened_at", ""),
+                "status": t.get("status", "unknown"),
+                "leverage": t.get("leverage", 1),
             })
         return out
     except Exception as e:
