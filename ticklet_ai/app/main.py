@@ -220,6 +220,13 @@ try:
 except Exception:
     pass
 
+# AI routes
+try:
+    from ticklet_ai.app.routes import ai
+    app.include_router(ai.router)
+except Exception:
+    pass
+
 @app.get("/settings")
 async def settings():
     return {

@@ -1,1 +1,1 @@
-# Background task runner
+# Background processing

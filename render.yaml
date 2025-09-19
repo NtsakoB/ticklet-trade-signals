@@ -1,9 +1,15 @@
 services:
-  - type: web
-    name: ticklet
-    env: docker
-    dockerfilePath: ticklet_ai/Dockerfile
-    autoDeploy: true
-    envVars:
-      - key: PORT
-        value: "8000"
+- type: web
+  name: ticklet-api
+  runtime: python
+  envVars:
+  - key: PYTHON_VERSION
+    value: 3.11.9
+  buildCommand: |
+    pip install -U pip setuptools wheel
+    pip install -r requirements.txt
+  startCommand: uvicorn ticklet_ai.app.main:app --host 0.0.0.0 --port $PORT
+  disk:
+    name: ticklet-data
+    mountPath: /var/data/ticklet
+    sizeGB: 10
