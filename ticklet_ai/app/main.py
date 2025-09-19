@@ -267,6 +267,11 @@ try:
 except Exception:
     insights_router = None
 
+try:
+    from ticklet_ai.routers.summary import router as summary_router  # dashboard summary
+except Exception:
+    summary_router = None
+
 # Mount existing /market routes ALSO under /api for consistency (keep old /market/* working)
 if market_router:
     # Backward-compat (original mount likely already present elsewhere)
@@ -280,6 +285,13 @@ if market_router:
 if insights_router:
     try:
         app.include_router(insights_router, prefix="/api")
+    except Exception:
+        pass
+
+# Mount summary routes under /api
+if summary_router:
+    try:
+        app.include_router(summary_router, prefix="/api")
     except Exception:
         pass
 # --- PATCH END ---

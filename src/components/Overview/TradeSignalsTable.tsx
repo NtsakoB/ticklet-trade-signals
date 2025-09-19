@@ -7,7 +7,7 @@ export default function TradeSignalsTable() {
 
   useEffect(() => {
     let alive = true;
-    fetchSignals("trade").then((d) => { if (alive) setRows(d); });
+    fetchSignals("active").then((d) => { if (alive) setRows(d); });
     return () => { alive = false; };
   }, []);
 
@@ -23,7 +23,7 @@ export default function TradeSignalsTable() {
   return (
     <div className="bg-[#111827] rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-lg font-semibold">Trade Signals</div>
+        <div className="text-lg font-semibold">Active Trade Signals</div>
         <input
           value={q}
           onChange={(e)=>setQ(e.target.value)}
@@ -37,7 +37,7 @@ export default function TradeSignalsTable() {
           <div>Symbol</div><div>Type</div><div>Entry</div><div>Targets</div><div>Stop</div><div>Status</div>
         </div>
         {filtered.length === 0 ? (
-          <div className="p-4 text-gray-500">No trade signals.</div>
+          <div className="p-4 text-gray-500">No active trade signals.</div>
         ) : filtered.map((s) => (
           <div key={s.id} className="grid grid-cols-6 px-3 py-3 text-sm border-t border-gray-800">
             <div className="font-medium">{s.symbol}</div>
