@@ -21,8 +21,8 @@ export const MissedOpportunities = () => {
     const fetchMissedOpportunities = async () => {
       try {
         setIsLoading(true);
-        // Replace with actual API endpoint when backend is ready
-        const data = await apiFetch('/api/missed-opportunities');
+        // Updated to match backend endpoint
+        const data = await apiFetch('/api/signals?type=missed');
         setMissedOpportunities(data);
       } catch (error) {
         console.error('Failed to fetch missed opportunities:', error);
