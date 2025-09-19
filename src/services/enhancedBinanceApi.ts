@@ -174,6 +174,64 @@ class EnhancedBinanceApi {
       };
     }).filter(Boolean) as TradeSignal[];
   }
+
+  // NEW: Post a signal to the backend /api/signals endpoint
+  static async postSignal(signal: {
+    symbol: string;
+    type: "BUY" | "SELL";
+    entry_price: number;
+    side: "LONG" | "SHORT";
+    confidence: number;
+    entry_low?: number;
+    entry_high?: number;
+    stop_loss?: number;
+    targets?: number[];
+    rr_ratio?: number;
+    volume?: number;
+    change_pct?: number;
+    metadata?: Record<string, any>;
+  }): Promise<any> {
+    try {
+      const response = await fetch('/api/signals/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(signal),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to post signal: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Signal posted successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error posting signal:', error);
+      toast.error('Failed to save signal to database');
+      throw error;
+    }
+  }
+
+  // NEW: Get recent signals from the backend /api/signals endpoint
+  static async getRecentSignals(limit: number = 10): Promise<any[]> {
+    try {
+      const response = await fetch(`/api/signals/?type=recent&limit=${limit}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recent signals: ${response.statusText}`);
+      }
+
+      const signals = await response.json();
+      console.log('Recent signals fetched:', signals);
+      return signals;
+    } catch (error) {
+      console.error('Error fetching recent signals:', error);
+      toast.error('Failed to fetch recent signals from database');
+      return [];
+    }
+  }
 }
 
 export default EnhancedBinanceApi;
