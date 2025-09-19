@@ -256,6 +256,34 @@ try:
 except Exception:
     pass
 
+# --- PATCH START: mount /market under /api and add insights compat router ---
+try:
+    from ticklet_ai.app.routers.market import router as market_router  # existing
+except Exception:
+    market_router = None
+
+try:
+    from ticklet_ai.app.routers.insights import router as insights_router  # new
+except Exception:
+    insights_router = None
+
+# Mount existing /market routes ALSO under /api for consistency (keep old /market/* working)
+if market_router:
+    # Backward-compat (original mount likely already present elsewhere)
+    try:
+        app.include_router(market_router, prefix="/api")
+    except Exception:
+        # ignore double-mount in dev reloads
+        pass
+
+# Mount compatibility /api/* routes
+if insights_router:
+    try:
+        app.include_router(insights_router, prefix="/api")
+    except Exception:
+        pass
+# --- PATCH END ---
+
 @app.get("/settings")
 async def settings():
     return {
