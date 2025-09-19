@@ -93,8 +93,8 @@ async def get_ml_status(): return await _get(ENDPOINTS["ml_status"])
 TOOLS = [
     {"type":"function","function":{"name":"tool_get_portfolio","description":"Return balances, exposure, PnL summary, and current mode (paper/live).","parameters":{"type":"object","properties":{}}}},
     {"type":"function","function":{"name":"tool_get_paper_status","description":"Return paper-trading status: open positions, win rate, last trades.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"tool_get_price","description":"Get latest price for a symbol like BTCUSDT or ETHUSDT.","parameters":{"type":"object","properties":{"symbol":{"type":"string"}},"required":["symbol"]}}}},
-    {"type":"function","function":{"name":"tool_get_trade_explanation","description":"Explain why a trade won/lost for a trade_id using indicators and ML.","parameters":{"type":"object","properties":{"trade_id":{"type":"string"}},"required":["trade_id"]}}}},
+    {"type":"function","function":{"name":"tool_get_price","description":"Get latest price for a symbol like BTCUSDT or ETHUSDT.","parameters":{"type":"object","properties":{"symbol":{"type":"string"}},"required":["symbol"]}}},
+    {"type":"function","function":{"name":"tool_get_trade_explanation","description":"Explain why a trade won/lost for a trade_id using indicators and ML.","parameters":{"type":"object","properties":{"trade_id":{"type":"string"}},"required":["trade_id"]}}},
     {"type":"function","function":{"name":"tool_engine_settings","description":"Return engine settings including selected strategy and risk settings.","parameters":{"type":"object","properties":{}}}},
     {"type":"function","function":{"name":"tool_bg_status","description":"Return background strategy runner status and tickers universe.","parameters":{"type":"object","properties":{}}}},
     {"type":"function","function":{"name":"tool_ml_status","description":"Return ML model status and learning curve availability.","parameters":{"type":"object","properties":{}}}},
