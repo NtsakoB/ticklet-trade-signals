@@ -639,6 +639,51 @@ export type Database = {
         }
         Relationships: []
       }
+      trades: {
+        Row: {
+          closed_at: string | null
+          entry_price: number
+          id: string
+          leverage: number | null
+          mode: string
+          opened_at: string
+          pnl_abs: number | null
+          pnl_pct: number | null
+          qty: number | null
+          status: string
+          strategy: string
+          symbol: string
+        }
+        Insert: {
+          closed_at?: string | null
+          entry_price: number
+          id?: string
+          leverage?: number | null
+          mode?: string
+          opened_at?: string
+          pnl_abs?: number | null
+          pnl_pct?: number | null
+          qty?: number | null
+          status?: string
+          strategy?: string
+          symbol: string
+        }
+        Update: {
+          closed_at?: string | null
+          entry_price?: number
+          id?: string
+          leverage?: number | null
+          mode?: string
+          opened_at?: string
+          pnl_abs?: number | null
+          pnl_pct?: number | null
+          qty?: number | null
+          status?: string
+          strategy?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
       user_trade_counters: {
         Row: {
           created_at: string
