@@ -32,7 +32,8 @@ class Settings:
     BINANCE_SECRET: str | None = os.getenv("TICKLET_BINANCE_SECRET")
 
     # openai
-    OPENAI_KEY: str | None = os.getenv("TICKLET_OPENAI_KEY")
+    OPENAI_KEY: str | None = os.getenv("TICKLET_OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.getenv("TICKLET_OPENAI_MODEL", "gpt-5-mini")
 
     # telegram (kept but optional)
     TELEGRAM_BOT_TOKEN: str | None = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -77,3 +78,9 @@ class Settings:
         logger.info("WORKER ENV OK | TZ=%s | scan=%s train=%s", self.TZ, self.SCAN_INTERVAL_CRON, self.TRAINING_CRON)
 
 settings = Settings()
+
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return settings

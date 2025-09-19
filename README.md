@@ -123,3 +123,12 @@ Hook usage (you MUST call these in your trader flow):
 Notes:
 - Map adapters in this patch to your REAL function names/paths (no renames to your originals).
 - CSV fallbacks live under `./data/` if Supabase env is not set.
+
+---
+## Chat service wiring (Render)
+1. In Render → *Service* → **Environment** add:
+   - `TICKLET_OPENAI_KEY` = your real OpenAI key
+   - Optional: `TICKLET_OPENAI_MODEL` (default `gpt-5-mini`)
+2. Redeploy the service.
+3. Health check: open `https://<your-domain>/api/chat/health` — `{"ok": true, ...}` should appear.
+4. The frontend widget should POST to `POST /api/chat/completions` with `{messages: [{role, content}, ...]}`.

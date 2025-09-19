@@ -201,12 +201,18 @@ except Exception:
 
 # Chat router
 try:
-    from ticklet_ai.app.routers import chat, chat_store
-    app.include_router(chat.router)
-    app.include_router(chat_store.router)
+    from ticklet_ai.app.routers.chat import router as chat_router
+    app.include_router(chat_router, prefix="/api/chat")
+    logger.info("✅ Chat router mounted under /api/chat")
 except Exception as e:
     # Do not crash startup if chat router import fails; log and continue.
     logger.error("Chat router not mounted: %s", e)
+
+try:
+    from ticklet_ai.app.routers import chat_store
+    app.include_router(chat_store.router)
+except Exception as e:
+    logger.error("Chat store router not mounted: %s", e)
 
 # ML routes and initialization
 try:
