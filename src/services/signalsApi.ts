@@ -10,10 +10,19 @@ export type UISignal = {
   tags?: string[];
 };
 
-export async function fetchSignals(type: "trade" | "recent" | "low_entry" | "missed" | "low_price"): Promise<UISignal[]> {
+export async function fetchSignals(type: "active" | "recent" | "missed" | "lowest"): Promise<UISignal[]> {
   const res = await fetch(`/api/signals?type=${type}`, {
     headers: { Accept: "application/json" }
   });
   if (!res.ok) throw new Error(`fetchSignals failed: ${res.status}`);
+  return res.json();
+}
+
+// Backward compatibility function for old types
+export async function fetchSignalsCompat(type: "trade" | "low_entry" | "low_price"): Promise<UISignal[]> {
+  const res = await fetch(`/api/signals/compat?type=${type}`, {
+    headers: { Accept: "application/json" }
+  });
+  if (!res.ok) throw new Error(`fetchSignalsCompat failed: ${res.status}`);
   return res.json();
 }

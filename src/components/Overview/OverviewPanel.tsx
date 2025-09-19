@@ -5,23 +5,23 @@ import { fetchSignals, UISignal } from "@/services/signalsApi";
 
 export default function OverviewPanel() {
   const [recent, setRecent] = useState<UISignal[]>([]);
-  const [lowEntry, setLowEntry] = useState<UISignal[]>([]);
+  const [lowest, setLowest] = useState<UISignal[]>([]);
   const [missed, setMissed] = useState<UISignal[]>([]);
-  const [lowPrice, setLowPrice] = useState<UISignal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [b,c,d,e] = await Promise.all([
+        const [recentData, lowestData, missedData] = await Promise.all([
           fetchSignals("recent"),
-          fetchSignals("low_entry"),
+          fetchSignals("lowest"), // Updated from "low_entry"
           fetchSignals("missed"),
-          fetchSignals("low_price"),
         ]);
         if (!alive) return;
-        setRecent(b); setLowEntry(c); setMissed(d); setLowPrice(e);
+        setRecent(recentData); 
+        setLowest(lowestData); 
+        setMissed(missedData);
       } finally {
         if (alive) setLoading(false);
       }
@@ -44,7 +44,7 @@ export default function OverviewPanel() {
         </div>
         <div className="lg:col-span-1">
           <div className="mb-2 text-sm text-gray-400">Low Entry Watchlist</div>
-          <SignalList items={lowEntry} emptyText="No low-entry opportunities found." />
+          <SignalList items={lowest} emptyText="No low-entry opportunities found." />
         </div>
       </div>
 
@@ -55,8 +55,8 @@ export default function OverviewPanel() {
           <SignalList items={missed} emptyText="No missed opportunities detected." />
         </div>
         <div>
-          <div className="mb-2 text-sm text-gray-400">Lowest Price</div>
-          <SignalList items={lowPrice} emptyText="No symbols near lowest price detected." />
+          <div className="mb-2 text-sm text-gray-400">Lowest Price Opportunities</div>
+          <SignalList items={lowest} emptyText="No symbols near lowest price detected." />
         </div>
       </div>
     </div>
