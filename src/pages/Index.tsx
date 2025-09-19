@@ -200,6 +200,39 @@ const Index = () => {
     console.log('New signal generated:', signal);
     setSelectedSymbol(signal.symbol);
     
+    // POST signal to the persistence API
+    try {
+      const signalData = {
+        symbol: signal.symbol,
+        type: signal.type as "BUY" | "SELL",
+        entry_price: signal.entryPrice,
+        side: signal.type === "BUY" ? "LONG" as const : "SHORT" as const,
+        confidence: signal.confidence,
+        entry_low: signal.entryPrice * 0.995, // 0.5% below entry as low range
+        entry_high: signal.entryPrice * 1.005, // 0.5% above entry as high range
+        stop_loss: signal.stopLoss,
+        targets: signal.targets,
+        rr_ratio: signal.leverage || 1,
+        volume: signal.volume,
+        change_pct: signal.changePercentage || 0,
+        metadata: {
+          strategy: signal.strategy || activeStrategy,
+          strategyName: signal.strategyName,
+          anomaly: signal.anomaly,
+          anomaly_score: signal.anomaly_score,
+          source: signal.source || 'strategy',
+          exchange: signal.exchange || 'Binance',
+          ...signal.metadata
+        }
+      };
+      
+      await EnhancedBinanceApi.postSignal(signalData);
+      console.log('Signal successfully saved to API');
+    } catch (error) {
+      console.error('Failed to save signal to API:', error);
+      // Continue execution even if API call fails
+    }
+    
     // Auto-execute as paper trade if enabled
     try {
       await PaperTradingService.executePaperTrade(signal);
