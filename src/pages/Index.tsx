@@ -10,7 +10,7 @@ import AiLearningChart from "@/components/AiLearningChart";
 import TotalBalance from "@/components/TotalBalance";
 import ProjectionChart from "@/components/ProjectionChart";
 import AiInsights from "@/components/AiInsights";
-import BacktestResults from "@/components/BacktestResults";
+import BacktestPanel from "@/components/Backtest/BacktestPanel";
 import TradingViewChart from "@/components/TradingViewChart";
 import SignalGenerator from "@/components/SignalGenerator";
 import PaperTradingPanel from "@/components/PaperTradingPanel";
@@ -455,7 +455,7 @@ const Index = () => {
             )}
             
             {activeTab === 'backtest' && (
-              <BacktestResults />
+              <BacktestPanel />
             )}
             
             {activeTab === 'projections' && (

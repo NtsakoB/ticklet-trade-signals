@@ -240,6 +240,12 @@ try:
 except Exception:
     pass
 
+try:
+    from ticklet_ai.app.routes.backtest import router as backtest_router
+    app.include_router(backtest_router)
+except Exception:
+    pass
+
 @app.get("/settings")
 async def settings():
     return {

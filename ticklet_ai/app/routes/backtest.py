@@ -1,29 +1,120 @@
-from fastapi import APIRouter, Query
-from ..services.signal_filter import rideout_should_alert
-from ..services.settings_store import get_settings
+import os, json, uuid, time
+from typing import Dict, Any
+from fastapi import APIRouter, Body, Query, HTTPException
+try:
+    from ticklet_ai.utils.paths import DATA_DIR
+except Exception:
+    DATA_DIR = os.environ.get("TICKLET_DATA_DIR", "./data")
 
-router = APIRouter(prefix="/backtest", tags=["backtest"])
+os.makedirs(DATA_DIR, exist_ok=True)
+BT_DIR = os.path.join(DATA_DIR, "backtests")
+os.makedirs(BT_DIR, exist_ok=True)
 
-@router.get("/run")
-def run(symbol: str = Query("BTCUSDT"), interval: str = Query("1h"), bars: int = Query(500)):
-    # In a real impl, fetch klines & compute signals per bar. Here we simulate:
-    s = get_settings()
-    volume_filter = s.get("volume_filter", 0.0)
-    hits = 0
-    misses = 0
+from ticklet_ai.services.backtest import BacktestParams, run_backtest
+
+router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+@router.post("/run")
+def run_backtest_endpoint(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """Run comprehensive backtest with real strategy evaluation"""
+    try:
+        # Parse parameters
+        params = BacktestParams(
+            strategy_name=payload.get("strategy", "TickletAlpha"),
+            symbol=payload.get("symbol", "BTCUSDT"),
+            interval=payload.get("interval", "1h"),
+            min_volume=float(payload.get("min_volume", 50000)),
+            min_price_change_pct=float(payload.get("min_price_change_pct", 1)),
+            max_signals=int(payload.get("max_signals", 100)),
+            min_confidence_pct=float(payload.get("min_confidence", 30)),
+            start_time=payload.get("start_time"),
+            end_time=payload.get("end_time")
+        )
+        
+        # Run backtest
+        result = run_backtest(params)
+        
+        # Save result
+        result_id = result["id"]
+        result["ts"] = int(time.time())
+        
+        with open(os.path.join(BT_DIR, f"{result_id}.json"), "w") as f:
+            json.dump(result, f, indent=2)
+        
+        # Return summary (without full trade list)
+        summary = {k: v for k, v in result.items() if k != "trades"}
+        summary["trade_count"] = len(result.get("trades", []))
+        
+        return {
+            "id": result_id,
+            "summary": summary,
+            "status": "completed"
+        }
+        
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        return {
+            "error": str(e),
+            "status": "failed"
+        }
+
+@router.get("/result/{result_id}")
+def get_backtest_result(result_id: str) -> Dict[str, Any]:
+    """Get full backtest result including all trades"""
+    result_path = os.path.join(BT_DIR, f"{result_id}.json")
     
-    for i in range(bars):
-        price_now = 68000.0
-        entry_low, entry_high = 67900.0, 68100.0
-        rr_tp2 = 1.8
-        vol = 100000 + i
+    if not os.path.exists(result_path):
+        raise HTTPException(status_code=404, detail="Backtest result not found")
+    
+    try:
+        with open(result_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading result: {e}")
+
+@router.get("/results")
+def list_backtest_results() -> Dict[str, Any]:
+    """List all available backtest results"""
+    try:
+        results = []
+        for filename in os.listdir(BT_DIR):
+            if filename.endswith(".json"):
+                result_path = os.path.join(BT_DIR, filename)
+                try:
+                    with open(result_path, "r") as f:
+                        result = json.load(f)
+                        # Include only summary info
+                        summary = {
+                            "id": result.get("id"),
+                            "strategy": result.get("strategy"),
+                            "symbol": result.get("symbol"),
+                            "interval": result.get("interval"),
+                            "executed": result.get("executed", 0),
+                            "win_rate": result.get("win_rate", 0),
+                            "pnl_pct": result.get("pnl_pct", 0),
+                            "timestamp": result.get("timestamp", 0)
+                        }
+                        results.append(summary)
+                except Exception as e:
+                    print(f"Error reading result {filename}: {e}")
+                    continue
         
-        if vol < volume_filter:
-            misses += 1
-            continue
-            
-        ok = rideout_should_alert(price_now=price_now, entry_low=entry_low, entry_high=entry_high,
-                                  rr_tp2=rr_tp2, late_p=0.62, extend_p=0.64, reentry_p=0.60, overext_atr=1.2)
-        hits += 1 if ok else 0
+        # Sort by timestamp, newest first
+        results.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
         
-    return {"symbol":symbol, "bars":bars, "volume_filter":volume_filter, "signals":hits, "skipped":misses}
+        return {"results": results}
+        
+    except Exception as e:
+        return {"error": str(e), "results": []}
+
+# Legacy endpoint for compatibility
+@router.get("/run")
+def run_legacy(symbol: str = Query("BTCUSDT"), interval: str = Query("1h"), bars: int = Query(500)):
+    """Legacy backtest endpoint for backward compatibility"""
+    payload = {
+        "strategy": "TickletAlpha",
+        "symbol": symbol,
+        "interval": interval,
+        "max_signals": min(bars, 100)
+    }
+    return run_backtest_endpoint(payload)

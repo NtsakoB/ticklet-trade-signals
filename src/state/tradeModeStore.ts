@@ -14,6 +14,14 @@ export interface TradeModeState {
   setStrategy: (strategy: string) => void;
   setDynamicLeverageEnabled: (enabled: boolean) => void;
   setManualLeverage: (leverage: number) => void;
+  
+  // Helper method to get current settings for backtest
+  getSettings: () => {
+    minVolume: number;
+    minPriceChange: number;
+    maxSignals: number;
+    minConfidence: number;
+  };
 }
 
 export const useTradeModeStore = create<TradeModeState>()(
@@ -49,6 +57,18 @@ export const useTradeModeStore = create<TradeModeState>()(
           ...settings, 
           leverage: clampedLeverage 
         });
+      },
+      
+      // Helper method for backtesting
+      getSettings: () => {
+        const state = get();
+        const settings = StorageService.getSettings();
+        return {
+          minVolume: settings.minVolume || 50000,
+          minPriceChange: settings.minPriceChange || 1.0,
+          maxSignals: settings.maxSignals || 100,
+          minConfidence: settings.minConfidence || 30,
+        };
       },
     }),
     {

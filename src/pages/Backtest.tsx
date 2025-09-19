@@ -1,16 +1,19 @@
-import React, { useState } from "react";
-import { api } from "@/integrations/api";
+import React from "react";
+import BacktestPanel from "@/components/Backtest/BacktestPanel";
 
 export default function Backtest() {
-  const [out, setOut] = useState<any>(null);
-
   return (
-    <div className="p-6 space-y-3">
-      <h1 className="text-2xl font-semibold">Backtest</h1>
-      <button className="border px-3 py-1" onClick={async()=>setOut(await api.backtestRun())}>
-        Run Backtest
-      </button>
-      <pre className="bg-muted p-2 whitespace-pre-wrap">{out ? JSON.stringify(out,null,2) : "No results yet"}</pre>
+    <div className="min-h-screen bg-gradient-primary p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-white">Comprehensive Backtesting</h1>
+          <p className="text-white/80">
+            Test your strategies with real historical data, AI/ML integration, and comprehensive metrics
+          </p>
+        </div>
+        
+        <BacktestPanel />
+      </div>
     </div>
   );
 }
