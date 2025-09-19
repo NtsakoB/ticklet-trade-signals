@@ -25,6 +25,7 @@ import { MarketInsights } from "@/components/MarketInsights";
 import { LowEntryWatchlist } from "@/components/InsightPanels/LowEntryWatchlist";
 import { LowestPriceNow } from "@/components/InsightPanels/LowestPriceNow";
 import { MissedOpportunities } from "@/components/InsightPanels/MissedOpportunities";
+import OverviewPanel from "@/components/Overview/OverviewPanel";
 import { useStrategy } from "@/hooks/useStrategy";
 import { useTelegramSignals } from "@/hooks/useTelegramSignals";
 import TelegramService from "@/services/telegramService";
@@ -403,27 +404,7 @@ const Index = () => {
           {/* Main content based on active tab */}
           <div>
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <div className="lg:col-span-2">
-                    <SignalTable signals={signals} />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <RecentSignals signals={recent} />
-                      </div>
-                      <div className="space-y-4">
-                        <LowEntryWatchlist />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <MissedOpportunities />
-                          <LowestPriceNow />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <OverviewPanel />
             )}
             
             {activeTab === 'chart' && (
