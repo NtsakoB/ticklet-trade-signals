@@ -1,101 +1,46 @@
-from __future__ import annotations
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-import httpx
-from openai import OpenAI
-from ticklet_ai.config import get_settings
+from fastapi import APIRouter
+from pydantic import BaseModel
+from datetime import datetime
+import uuid, os
 
-router = APIRouter(tags=["chat"])
+router = APIRouter(prefix="/api", tags=["chat"])
+legacy_router = APIRouter(prefix="", tags=["chat-legacy"])
 
-TOOLS: List[dict] = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_market_summary",
-            "description": "Return a short market summary used in Ticklet UI.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "symbol": {"type": "string", "description": "Symbol like BTCUSDT"},
-                    "interval": {"type": "string", "description": "Timeframe like 1h"}
-                },
-                "required": ["symbol", "interval"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_open_positions",
-            "description": "Return a compact list of open positions.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    }
-]
+class ChatSessionIn(BaseModel):
+    title: str | None = None
 
-class ChatMessage(BaseModel):
-    role: str = Field(..., description="system|user|assistant")
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-    stream: bool = False
-    model: Optional[str] = None
-    tools: Optional[List[dict]] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-class ChatResponse(BaseModel):
-    output_text: str
-
-def _client() -> OpenAI:
-    s = get_settings()
-    if not s.OPENAI_KEY:
-        raise RuntimeError("OpenAI key missing. Set TICKLET_OPENAI_KEY or OPENAI_API_KEY.")
-    return OpenAI(api_key=s.OPENAI_KEY)
-
-@router.get("/health")
-def health() -> Dict[str, Any]:
-    """Lightweight health endpoint to verify wiring at runtime."""
-    s = get_settings()
-    return {
-        "ok": bool(s.OPENAI_KEY),
-        "model": s.OPENAI_MODEL,
-        "has_key": bool(s.OPENAI_KEY),
-    }
-
-@router.post("/completions", response_model=ChatResponse)
-async def completions(body: ChatRequest) -> ChatResponse:
-    """
-    Minimal wrapper around OpenAI chat completions API.
-    Frontend posts messages; we return output_text.
-    """
-    s = get_settings()
-    model = body.model or s.OPENAI_MODEL
+def _sb():
     try:
-        client = _client()
+        from supabase import create_client
+        url = os.environ.get("TICKLET_SUPABASE_URL")
+        key = os.environ.get("TICKLET_SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("TICKLET_SUPABASE_ANON_KEY")
+        if url and key:
+            return create_client(url, key)
+    except Exception:
+        pass
+    return None
 
-        # Convert messages to OpenAI format
-        messages = []
-        for m in body.messages:
-            messages.append({"role": m.role, "content": m.content})
+def _store_session(session_id: str, title: str, created_at: str):
+    sb = _sb()
+    if not sb:
+        return
+    try:
+        sb.table("chat_sessions").insert({
+            "id": session_id,
+            "title": title,
+            "created_at": created_at
+        }).execute()
+    except Exception:
+        # non-fatal if table not present
+        pass
 
-        # Add timeout and error handling
-        async with httpx.AsyncClient(timeout=30.0) as http_client:
-            resp = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000,
-            )
-            
-            text = resp.choices[0].message.content
-            if not text:
-                raise RuntimeError("Empty response from model.")
-                
-            return ChatResponse(output_text=text.strip())
-            
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"Upstream connection error: {e}") from e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+@router.post("/chat/session")
+def create_chat_session(body: ChatSessionIn):
+    sid = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    _store_session(sid, body.title or "Session", now)
+    return {"id": sid, "title": body.title or "Session", "created_at": now}
+
+@legacy_router.post("/chat/session")
+def create_chat_session_legacy(body: ChatSessionIn):
+    return create_chat_session(body)
