@@ -81,6 +81,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# --- Mount health router ---
+from ticklet_ai.app.routers.health import router as health_router
+app.include_router(health_router, prefix="/api/health")
+
 # Dev-only CORS (prod uses same-origin via Vercel rewrite)
 DEV_ORIGINS = ["http://localhost:5173", "http://localhost:4173"]
 

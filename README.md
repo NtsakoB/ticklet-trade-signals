@@ -132,3 +132,23 @@ Notes:
 2. Redeploy the service.
 3. Health check: open `https://<your-domain>/api/chat/health` — `{"ok": true, ...}` should appear.
 4. The frontend widget should POST to `POST /api/chat/completions` with `{messages: [{role, content}, ...]}`.
+
+---
+## Health Checklist
+
+After deploy, run these sanity checks:
+
+```bash
+# OpenAI wiring (chat key & model)
+curl -s https://<your-domain>/api/health/chat
+
+# Postgres/asyncpg connectivity
+curl -s https://<your-domain>/api/health/db
+
+# Combined summary
+curl -s https://<your-domain>/api/health/
+```
+
+- `/api/health/chat` → `{"ok": true, "model": "gpt-5-mini", "has_key": true}`
+- `/api/health/db` → `{"ok": true, "message": "Connected to Postgres successfully"}`
+- `/api/health/` → `{"chat_ok": true, "db_ok": true}`
