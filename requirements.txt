@@ -32,3 +32,6 @@ APScheduler==3.10.4
 
 # Testing
 pytest>=7.0
+
+# --- Database drivers ---
+asyncpg>=0.28
