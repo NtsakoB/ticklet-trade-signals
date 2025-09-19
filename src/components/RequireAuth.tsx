@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function RequireAuth({ children }: { children: JSX.Element }) {
+  // For demo purposes, temporarily bypass auth
+  if (import.meta.env.MODE === 'development') {
+    return children;
+  }
+
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
 
