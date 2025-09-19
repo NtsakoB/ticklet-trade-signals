@@ -227,6 +227,19 @@ try:
 except Exception:
     pass
 
+# Trading settings and trades routes
+try:
+    from ticklet_ai.app.routes.settings import router as settings_router
+    app.include_router(settings_router)
+except Exception:
+    pass
+
+try:
+    from ticklet_ai.app.routes.trades import router as trades_router  
+    app.include_router(trades_router)
+except Exception:
+    pass
+
 @app.get("/settings")
 async def settings():
     return {

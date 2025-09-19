@@ -1,24 +1,45 @@
+from fastapi import APIRouter, Body
+from typing import Dict, Any
+import json
 import os
-from fastapi import APIRouter, HTTPException
-router = APIRouter(prefix="/settings", tags=["settings"])
-SAFE_DEFAULTS = {
-  "AI_ENABLED": os.getenv("AI_ENABLED", "true"),
-  "AI_LATE_ENTRY_PROB_MIN": os.getenv("AI_LATE_ENTRY_PROB_MIN", "0.55"),
-  "AI_EXTEND_PROB_MIN": os.getenv("AI_EXTEND_PROB_MIN", "0.60"),
-  "AI_REENTRY_PROB_MIN": os.getenv("AI_REENTRY_PROB_MIN", "0.58"),
-  "MAX_OVEREXTENSION_ATR": os.getenv("MAX_OVEREXTENSION_ATR", "3.0"),
-  "MIN_RR_TP2": os.getenv("MIN_RR_TP2", "1.5"),
-  "SIGNAL_LOOP_INTERVAL": os.getenv("SIGNAL_LOOP_INTERVAL", "60"),
-  "SCHED_TZ": os.getenv("SCHED_TZ", "Africa/Johannesburg"),
-  "SCHEDULER_HOUR": os.getenv("SCHEDULER_HOUR", "10"),
-  "SCHEDULER_MINUTE": os.getenv("SCHEDULER_MINUTE", "0"),
-  "PREVIEW_MODE": os.getenv("PREVIEW_MODE", "false"),
-}
-@router.get("")
-async def get_safe_settings():
-  return SAFE_DEFAULTS
-@router.get("/binance/test")
-async def test_binance_connectivity():
-  if not os.getenv("BINANCE_API_KEY") or not os.getenv("BINANCE_API_SECRET"):
-    raise HTTPException(status_code=400, detail="BINANCE credentials not set on server.")
-  return {"ok": True, "message": "Server has Binance credentials configured."}
+
+router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+# Alignment: adapt these imports/paths to your common data dir helper if it exists.
+try:
+    from ticklet_ai.utils.paths import DATA_DIR
+except Exception:
+    DATA_DIR = os.environ.get("TICKLET_DATA_DIR", "./data")
+
+os.makedirs(DATA_DIR, exist_ok=True)
+SETTINGS_FILE = os.path.join(DATA_DIR, "trading_settings.json")
+
+DEFAULT = { "dynamic_leverage_enabled": True, "manual_leverage": 10 }
+
+def load_settings() -> Dict[str, Any]:
+    try:
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return DEFAULT.copy()
+
+def save_settings(s: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(s, f)
+    except Exception:
+        pass
+    return s
+
+@router.get("/trading")
+def get_trading_settings() -> Dict[str, Any]:
+    return load_settings()
+
+@router.put("/trading")
+def put_trading_settings(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    s = load_settings()
+    dyn = bool(payload.get("dynamic_leverage_enabled", s["dynamic_leverage_enabled"]))
+    lev = int(payload.get("manual_leverage", s["manual_leverage"]))
+    lev = max(1, min(20, lev))
+    s = { "dynamic_leverage_enabled": dyn, "manual_leverage": lev }
+    return save_settings(s)

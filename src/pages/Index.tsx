@@ -5,7 +5,6 @@ import Header from "@/components/Header";
 import StatsCards from "@/components/StatsCards";
 import SignalTable from "@/components/SignalTable";
 import RecentSignals from "@/components/RecentSignals";
-import TradeLog from "@/components/TradeLog";
 import OpenTrades from "@/components/OpenTrades";
 import AiLearningChart from "@/components/AiLearningChart";
 import TotalBalance from "@/components/TotalBalance";
@@ -13,12 +12,13 @@ import ProjectionChart from "@/components/ProjectionChart";
 import AiInsights from "@/components/AiInsights";
 import BacktestResults from "@/components/BacktestResults";
 import TradingViewChart from "@/components/TradingViewChart";
-import LeverageControl from "@/components/LeverageControl";
 import SignalGenerator from "@/components/SignalGenerator";
 import PaperTradingPanel from "@/components/PaperTradingPanel";
 import AiStrategyOptimization from "@/components/AiStrategyOptimization";
 import MarketSummary from "@/components/MarketSummary";
 import SecuritySettings from "@/components/SecuritySettings";
+import LeverageControls from "@/components/TradingControls/LeverageControls";
+import TradeLogPanel from "@/components/TradeLog/TradeLogPanel";
 import { StrategySelector } from "@/components/ui/strategy-selector";
 import { SymbolSelector } from "@/components/SymbolSelector";
 import { MarketInsights } from "@/components/MarketInsights";
@@ -69,7 +69,7 @@ const Index = () => {
   // Projection days setting
   const [projectionDays, setProjectionDays] = useState(30);
   
-  // Leverage control
+  // Leverage control (legacy - now handled by LeverageControls component)
   const [currentLeverage, setCurrentLeverage] = useState(10);
   const [dynamicLeverage, setDynamicLeverage] = useState(false);
   
@@ -211,6 +211,7 @@ const Index = () => {
     console.log('Trade executed:', trade);
   };
 
+  // Legacy leverage handlers - kept for backward compatibility but not used by new components
   const handleLeverageChange = (leverage: number) => {
     setCurrentLeverage(leverage);
     
@@ -450,7 +451,7 @@ const Index = () => {
             )}
             
             {activeTab === 'logs' && (
-              <TradeLog trades={storedTrades} />
+              <TradeLogPanel />
             )}
             
             {activeTab === 'backtest' && (
@@ -498,32 +499,7 @@ const Index = () => {
                   />
                 </div>
                 <div className="space-y-4">
-                  <LeverageControl 
-                    currentLeverage={currentLeverage}
-                    onLeverageChange={handleLeverageChange}
-                  />
-                  
-                  {/* Dynamic Leverage Toggle */}
-                  <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">Dynamic Leverage</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Automatically adjust leverage based on signal confidence
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleDynamicLeverageToggle}
-                        className={`px-4 py-2 rounded-md transition-colors ${
-                          dynamicLeverage 
-                            ? 'bg-green-600 text-white' 
-                            : 'bg-gray-700 text-muted-foreground'
-                        }`}
-                      >
-                        {dynamicLeverage ? 'Enabled' : 'Disabled'}
-                      </button>
-                    </div>
-                  </div>
+                  <LeverageControls />
                 </div>
               </div>
             )}
