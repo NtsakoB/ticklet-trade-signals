@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SignalsService, UnifiedSignal } from "@/services/signalsService";
 
 export default function TradeSignalsTable() {
-  const [rows, setRows] = useState<UnifiedSignal[]>([]);
   const [q, setQ] = useState("");
 
-  useEffect(() => {
-    let alive = true;
-    SignalsService.fetchSignals("active").then((d) => { if (alive) setRows(d); });
-    return () => { alive = false; };
-  }, []);
+  // Use React Query for unified data pipeline
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['signals', 'active'],
+    queryFn: () => SignalsService.fetchSignals("active"),
+    staleTime: 30_000,
+    refetchInterval: 60_000, // Refetch every minute
+  });
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
@@ -36,7 +38,9 @@ export default function TradeSignalsTable() {
         <div className="grid grid-cols-6 text-xs text-gray-400 px-3 py-2 sticky top-0 bg-[#0f172a]">
           <div>Symbol</div><div>Type</div><div>Entry</div><div>Targets</div><div>Stop</div><div>Status</div>
         </div>
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="p-4 text-gray-500">Loading trade signals...</div>
+        ) : filtered.length === 0 ? (
           <div className="p-4 text-gray-500">No trade signals.</div>
         ) : filtered.map((s) => (
           <div key={s.id} className="grid grid-cols-6 px-3 py-3 text-sm border-t border-gray-800">
