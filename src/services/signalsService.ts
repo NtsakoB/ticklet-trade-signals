@@ -1,36 +1,42 @@
-export interface UnifiedSignal {
-  id: string;
-  symbol: string;
-  title: string;
-  subtitle: string;
-  confidence: number;   // integer 0..100
-  price: number;
-  change_pct: number;
-  time: string;
-  tags: string[];
-  entry_low: number;
-  entry_high: number;
-  stop_loss: number;
-  targets: number[];
-  rr_ratio: number;
-  volume: number;
-  raw_data?: any;
+export type SignalType = "active"|"recent"|"missed"|"low_entry"|"lowest";
+
+export interface SignalItem { 
+  symbol: string; 
+  side?: "BUY"|"SELL"; 
+  entry?: number; 
+  stop?: number; 
+  targets?: number[]; 
+  ai_commentary?: string; 
+  ml_confidence?: number; 
+  strategy?: string; 
+  status?: string; 
+  created_at?: string; 
+  [k:string]: any; 
 }
 
-export type SignalType = 'active' | 'recent' | 'missed' | 'lowest' | 'trade' | 'low_entry' | 'low_price';
+export interface SignalsResponse { 
+  title: string; 
+  items: SignalItem[]; 
+}
 
-const BASE = '/api';
+// Legacy interface aliases for backward compatibility
+export type UnifiedSignal = SignalItem;
 
+export async function fetchSignals(type: SignalType, limit=50): Promise<SignalsResponse> {
+  const res = await fetch(`/api/signals?type=${type}&limit=${limit}`);
+  if (!res.ok) throw new Error(`Failed to fetch ${type}`);
+  return res.json();
+}
+
+// Legacy class for backward compatibility
 export class SignalsService {
   static async fetchSignals(type: SignalType): Promise<UnifiedSignal[]> {
-    const res = await fetch(`${BASE}/signals?type=${type}`, { credentials: 'include' });
-    if (!res.ok) throw new Error(`signals(${type}) HTTP ${res.status}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const response = await fetchSignals(type);
+    return response.items;
   }
 
   static async generateSignal(): Promise<{ emitted: string[]; missed: string[]; checked: number; timestamp: number; }> {
-    const res = await fetch(`${BASE}/signals/generate`, { method: 'POST', credentials: 'include' });
+    const res = await fetch('/api/signals/generate', { method: 'POST', credentials: 'include' });
     if (!res.ok) throw new Error(`signals/generate HTTP ${res.status}`);
     return res.json();
   }
@@ -38,14 +44,14 @@ export class SignalsService {
   static async getDashboardStats(): Promise<{
     active_signals: number;
     executed_trades: number;
-    win_rate: number; // 0..1
+    win_rate: number;
     capital_at_risk: number;
     total_balance: number;
     starting_balance: number;
     performance_history: Array<{ date: string; balance: number; win_rate: number; trades_count: number; }>;
     last_updated: string;
   }> {
-    const res = await fetch(`${BASE}/summary/dashboard`, { credentials: 'include' });
+    const res = await fetch('/api/summary/dashboard', { credentials: 'include' });
     if (!res.ok) throw new Error(`summary/dashboard HTTP ${res.status}`);
     return res.json();
   }

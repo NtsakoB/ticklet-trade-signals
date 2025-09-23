@@ -406,7 +406,6 @@ const Index = () => {
           <div>
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <LiveSignalControls />
                 <OverviewPanel />
               </div>
             )}
@@ -468,6 +467,7 @@ const Index = () => {
             {activeTab === 'controls' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
+                  <LiveSignalControls />
                   <StrategySelector 
                     activeStrategy={activeStrategy}
                     strategies={getAllStrategies()}

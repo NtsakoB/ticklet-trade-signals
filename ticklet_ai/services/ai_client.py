@@ -1,7 +1,10 @@
-import os
 from openai import OpenAI
-def get_openai():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set")
-    return OpenAI(api_key=api_key), os.getenv("OPENAI_MODEL","gpt-5-mini")
+from ..config.env import OPENAI_KEY, OPENAI_MODEL
+
+def get_openai() -> OpenAI:
+    if not OPENAI_KEY:
+        raise RuntimeError("Missing TICKLET_OPENAI_KEY/OPENAI_API_KEY")
+    return OpenAI(api_key=OPENAI_KEY)
+
+def get_openai_model() -> str:
+    return OPENAI_MODEL

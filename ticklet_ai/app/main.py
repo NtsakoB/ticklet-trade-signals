@@ -290,14 +290,18 @@ from ticklet_ai.app.routers import dashboard as dashboard_router
 from ticklet_ai.app.routers import chat as chat_router
 from ticklet_ai.app.routers import signals as signals_router
 from ticklet_ai.app.routers import settings_trading
+from ticklet_ai.app.routers import env_public
+from ticklet_ai.app.routers import compat
 
+app.include_router(env_public.router)  # Mount /env.js
+app.include_router(signals_router.router)  # Mount unified /api/signals
+app.include_router(compat.router)  # Mount compat redirects
 app.include_router(signals_unified_router.router)
 app.include_router(signals_unified_router.legacy_router)  # exposes /signals (legacy)
 app.include_router(dashboard_router.router)
 app.include_router(dashboard_router.legacy_router)        # exposes /summary/dashboard (legacy)
 app.include_router(chat_router.router)
 app.include_router(chat_router.legacy_router)             # exposes /chat/session (legacy)
-app.include_router(signals_router.router)                 # exposes /api/signals with POST
 app.include_router(settings_trading.router)               # exposes /api/settings/trading
 
 # Live signals router
