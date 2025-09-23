@@ -1,7 +1,7 @@
 from supabase import create_client, Client
-from ...config.env import SUPABASE_URL, SUPABASE_ANON_KEY
+from ...conf.env import SUPABASE_URL, SUPABASE_ANON_KEY
 
-_sb: Client|None = None
+_sb: Client | None = None
 
 def get_supabase_client() -> Client:
     global _sb

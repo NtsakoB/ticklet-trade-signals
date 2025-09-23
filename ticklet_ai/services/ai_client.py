@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..config.env import OPENAI_KEY, OPENAI_MODEL
+from ..conf.env import OPENAI_KEY, OPENAI_MODEL
 
 def get_openai() -> OpenAI:
     if not OPENAI_KEY:

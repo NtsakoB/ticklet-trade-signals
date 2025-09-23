@@ -1,5 +1,5 @@
 from .ai_client import get_openai, get_openai_model
-from ..config.env import AI_ENABLED
+from ..conf.env import AI_ENABLED
 
 def enrich_and_persist_signal(sig: dict) -> dict:
     # ML confidence placeholder - integrate with actual ML service

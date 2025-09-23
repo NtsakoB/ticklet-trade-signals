@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Response
-from ...config.env import SUPABASE_URL, SUPABASE_ANON_KEY, BACKEND_URL
+from ...conf.env import SUPABASE_URL, SUPABASE_ANON_KEY, BACKEND_URL
 
 router = APIRouter()
 
