@@ -78,12 +78,18 @@ export class LiveSignalsApi {
    */
   static async triggerScheduledGeneration(): Promise<any> {
     try {
-      const supabaseUrl = "https://gjtetfgujpcyhjenudnb.supabase.co";
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Missing Supabase environment variables");
+      }
+      
       const response = await fetch(`${supabaseUrl}/functions/v1/signal-scheduler`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqdGV0Zmd1anBjeWhqZW51ZG5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMzQ5NjQsImV4cCI6MjA2NzcxMDk2NH0.RJddAD-2oCXMFaNCjBFMjqqGiwn21tfU3x8Kxgm9Y3s"}`,
+          "Authorization": `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({ trigger: "manual" }),
       });

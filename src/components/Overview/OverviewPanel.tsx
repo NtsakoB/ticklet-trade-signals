@@ -1,33 +1,39 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import TradeSignalsTable from "./TradeSignalsTable";
 import SignalList from "./SignalList";
 import { SignalsService, UnifiedSignal, SignalType } from "@/services/signalsService";
 
 export default function OverviewPanel() {
-  const [recent, setRecent] = useState<UnifiedSignal[]>([]);
-  const [lowEntry, setLowEntry] = useState<UnifiedSignal[]>([]);
-  const [missed, setMissed] = useState<UnifiedSignal[]>([]);
-  const [lowPrice, setLowPrice] = useState<UnifiedSignal[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use React Query for unified data pipeline with caching/invalidation
+  const { data: recent = [], isLoading: recentLoading } = useQuery({
+    queryKey: ['signals', 'recent'],
+    queryFn: () => SignalsService.fetchSignals("recent"),
+    staleTime: 30_000,
+    refetchInterval: 60_000, // Refetch every minute
+  });
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [b,c,d,e] = await Promise.all([
-          SignalsService.fetchSignals("recent"),
-          SignalsService.fetchSignals("low_entry"),
-          SignalsService.fetchSignals("missed"),
-          SignalsService.fetchSignals("lowest"),
-        ]);
-        if (!alive) return;
-        setRecent(b); setLowEntry(c); setMissed(d); setLowPrice(e);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+  const { data: lowEntry = [], isLoading: lowEntryLoading } = useQuery({
+    queryKey: ['signals', 'low_entry'],
+    queryFn: () => SignalsService.fetchSignals("low_entry"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const { data: missed = [], isLoading: missedLoading } = useQuery({
+    queryKey: ['signals', 'missed'],
+    queryFn: () => SignalsService.fetchSignals("missed"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const { data: lowPrice = [], isLoading: lowPriceLoading } = useQuery({
+    queryKey: ['signals', 'lowest'],
+    queryFn: () => SignalsService.fetchSignals("lowest"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const loading = recentLoading || lowEntryLoading || missedLoading || lowPriceLoading;
 
   if (loading) return <div className="text-gray-400">Loading overview…</div>;
 
@@ -40,11 +46,11 @@ export default function OverviewPanel() {
         </div>
         <div className="lg:col-span-1">
           <div className="mb-2 text-sm text-gray-400">Recent Signals</div>
-          <SignalList items={recent} emptyText="No recent signals." />
+          <SignalList items={recent} scroll={true} height="max-h-80" emptyText="No recent signals." />
         </div>
         <div className="lg:col-span-1">
           <div className="mb-2 text-sm text-gray-400">Low Entry Watchlist</div>
-          <SignalList items={lowEntry} emptyText="No low-entry opportunities found." />
+          <SignalList items={lowEntry} scroll={true} height="max-h-80" emptyText="No low-entry opportunities found." />
         </div>
       </div>
 
@@ -52,11 +58,11 @@ export default function OverviewPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="mb-2 text-sm text-gray-400">Missed Opportunities</div>
-          <SignalList items={missed} emptyText="No missed opportunities detected." />
+          <SignalList items={missed} scroll={true} height="max-h-80" emptyText="No missed opportunities detected." />
         </div>
         <div>
           <div className="mb-2 text-sm text-gray-400">Lowest Price</div>
-          <SignalList items={lowPrice} emptyText="No symbols near lowest price detected." />
+          <SignalList items={lowPrice} scroll={true} height="max-h-80" emptyText="No symbols near lowest price detected." />
         </div>
       </div>
     </div>
