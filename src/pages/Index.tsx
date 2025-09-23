@@ -406,7 +406,6 @@ const Index = () => {
           <div>
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <LiveSignalControls />
                 <OverviewPanel />
               </div>
             )}
@@ -474,6 +473,7 @@ const Index = () => {
                     onStrategyChange={setActiveStrategy}
                     variant="full"
                   />
+                  <LiveSignalControls />
                   <SignalGenerator 
                     onSignalGenerated={handleSignalGenerated}
                     onTradeExecuted={handleTradeExecuted}

@@ -7,36 +7,44 @@ interface StatsCardsProps {
   stats: DashboardStats;
 }
 
-const mockChartData = Array.from({ length: 20 }, () => ({ value: Math.floor(Math.random() * 100) }));
-
 export function StatsCards({ stats }: StatsCardsProps) {
+  // Use real performance history data instead of mock data
+  const chartData = stats.performanceHistory?.slice(-20).map(h => ({ value: h.balance })) || 
+    [{ value: stats.totalBalance }];
+  
+  const winRateData = stats.performanceHistory?.slice(-20).map(h => ({ value: h.win_rate * 100 })) || 
+    [{ value: stats.winRate * 100 }];
+  
+  const tradesData = stats.performanceHistory?.slice(-20).map(h => ({ value: h.trades_count })) || 
+    [{ value: stats.executedTrades }];
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard 
         title="Active Signals" 
         value={stats.activeSignals.toString()} 
         description="Live trading signals" 
-        chart={mockChartData}
+        chart={chartData}
         trend={stats.activeSignals > 5 ? "up" : "down"}
       />
       <StatCard 
         title="Executed Trades" 
         value={stats.executedTrades.toString()} 
         description="Total completed trades" 
-        chart={mockChartData.slice(5)}
+        chart={tradesData}
       />
       <StatCard 
         title="Win Rate" 
         value={`${(stats.winRate * 100).toFixed(1)}%`} 
         description="Overall success rate" 
-        chart={mockChartData.slice(10)}
+        chart={winRateData}
         trend={stats.winRate > 0.6 ? "up" : "down"}
       />
       <StatCard 
         title="Capital at Risk" 
         value={`$${stats.capitalAtRisk.toLocaleString()}`} 
         description="Current exposure" 
-        chart={mockChartData.slice(2)}
+        chart={chartData.slice(-10)} // Recent balance trend
         trend="neutral"
       />
     </div>
