@@ -40,11 +40,11 @@ export default function OverviewPanel() {
         </div>
         <div className="lg:col-span-1">
           <div className="mb-2 text-sm text-gray-400">Recent Signals</div>
-          <SignalList items={recent} emptyText="No recent signals." />
+          <SignalList items={recent} scroll={true} height="max-h-80" emptyText="No recent signals." />
         </div>
         <div className="lg:col-span-1">
           <div className="mb-2 text-sm text-gray-400">Low Entry Watchlist</div>
-          <SignalList items={lowEntry} emptyText="No low-entry opportunities found." />
+          <SignalList items={lowEntry} scroll={true} height="max-h-80" emptyText="No low-entry opportunities found." />
         </div>
       </div>
 
@@ -52,11 +52,11 @@ export default function OverviewPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="mb-2 text-sm text-gray-400">Missed Opportunities</div>
-          <SignalList items={missed} emptyText="No missed opportunities detected." />
+          <SignalList items={missed} scroll={true} height="max-h-80" emptyText="No missed opportunities detected." />
         </div>
         <div>
           <div className="mb-2 text-sm text-gray-400">Lowest Price</div>
-          <SignalList items={lowPrice} emptyText="No symbols near lowest price detected." />
+          <SignalList items={lowPrice} scroll={true} height="max-h-80" emptyText="No symbols near lowest price detected." />
         </div>
       </div>
     </div>

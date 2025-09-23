@@ -1,5 +1,23 @@
 # Welcome to your Lovable project
 
+## Environment Configuration
+
+This project requires specific environment variables to function properly. Copy `.env.example` to `.env` and fill in the required values:
+
+### Required Environment Variables
+
+#### Frontend (Vite) Variables
+- `VITE_SUPABASE_URL` - Your Supabase project URL (e.g., `https://your-project.supabase.co`)
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous/public key
+- `VITE_SUPABASE_PROJECT_ID` - Your Supabase project ID
+
+#### Backend Variables
+- `SUPABASE_URL` - Same as VITE_SUPABASE_URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key (different from anon key)
+- `OPENAI_API_KEY` - Your OpenAI API key for chat functionality
+
+**Important**: Never commit actual credentials to git. Use `.env.example` as a template and keep your actual `.env` file private.
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/c63d62d5-26e9-47a3-ba0f-c8af7150b78f
