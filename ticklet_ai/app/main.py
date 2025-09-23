@@ -300,6 +300,10 @@ app.include_router(chat_router.legacy_router)             # exposes /chat/sessio
 app.include_router(signals_router.router)                 # exposes /api/signals with POST
 app.include_router(settings_trading.router)               # exposes /api/settings/trading
 
+# Live signals router
+from ticklet_ai.app.routers.live_signals import router as live_signals_router
+app.include_router(live_signals_router)                   # exposes /api/live-signals/...
+
 @app.get("/settings")
 async def settings():
     return {

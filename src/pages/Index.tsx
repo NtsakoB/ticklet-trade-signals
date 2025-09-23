@@ -26,6 +26,7 @@ import { LowEntryWatchlist } from "@/components/InsightPanels/LowEntryWatchlist"
 import { LowestPriceNow } from "@/components/InsightPanels/LowestPriceNow";
 import { MissedOpportunities } from "@/components/InsightPanels/MissedOpportunities";
 import OverviewPanel from "@/components/Overview/OverviewPanel";
+import LiveSignalControls from "@/components/LiveSignalControls";
 import { useStrategy } from "@/hooks/useStrategy";
 import { useTelegramSignals } from "@/hooks/useTelegramSignals";
 import TelegramService from "@/services/telegramService";
@@ -404,7 +405,10 @@ const Index = () => {
           {/* Main content based on active tab */}
           <div>
             {activeTab === 'overview' && (
-              <OverviewPanel />
+              <div className="space-y-6">
+                <LiveSignalControls />
+                <OverviewPanel />
+              </div>
             )}
             
             {activeTab === 'chart' && (
