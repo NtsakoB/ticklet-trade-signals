@@ -29,7 +29,8 @@ export default function LiveSignalsTable({
   });
 
   const filtered = useMemo(() => {
-    return (signals || []).filter(s => {
+    const safeSignals = Array.isArray(signals) ? signals : [];
+    return safeSignals.filter(s => {
       const q = searchQuery.trim().toLowerCase();
       if (q && !(`${s.symbol} ${s.title} ${s.subtitle}`.toLowerCase().includes(q))) return false;
       if (confidenceFilter > 0 && s.confidence < confidenceFilter) return false;
@@ -155,7 +156,7 @@ export default function LiveSignalsTable({
 
         {!isLoading && filtered.length > 0 && (
           <div className="px-4 pb-3 text-xs text-muted-foreground flex justify-between items-center border-t border-gray-800 pt-2">
-            <span>Showing {filtered.length} of {signals.length} signals</span>
+            <span>Showing {filtered.length} of {Array.isArray(signals) ? signals.length : 0} signals</span>
             <span>Updated: {new Date().toLocaleTimeString()}</span>
           </div>
         )}

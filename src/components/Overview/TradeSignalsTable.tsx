@@ -7,14 +7,17 @@ export default function TradeSignalsTable() {
 
   useEffect(() => {
     let alive = true;
-    SignalsService.fetchSignals("active").then((d) => { if (alive) setRows(d); });
+    SignalsService.fetchSignals("active")
+      .then((d) => { if (alive) setRows(Array.isArray(d) ? d : []); })
+      .catch(() => { if (alive) setRows([]); });
     return () => { alive = false; };
   }, []);
 
   const filtered = useMemo(() => {
+    const safeRows = Array.isArray(rows) ? rows : [];
     const qq = q.trim().toLowerCase();
-    if (!qq) return rows;
-    return rows.filter(r =>
+    if (!qq) return safeRows;
+    return safeRows.filter(r =>
       r.symbol.toLowerCase().includes(qq) ||
       r.title.toLowerCase().includes(qq)
     );

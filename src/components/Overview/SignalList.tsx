@@ -4,13 +4,15 @@ export default function SignalList({
   items, height = "max-h-80", scroll = false, emptyText = "No items",
 }: { items: UnifiedSignal[]; height?: string; scroll?: boolean; emptyText?: string }) {
   const container = scroll ? `${height} overflow-auto` : "";
+  const safeItems = Array.isArray(items) ? items : [];
+  
   return (
     <div className={`bg-[#111827] rounded-2xl p-4 ${container}`}>
-      {items.length === 0 ? (
+      {safeItems.length === 0 ? (
         <div className="text-gray-400 text-sm">{emptyText}</div>
       ) : (
         <div className="space-y-2">
-          {items.map((s) => (
+          {safeItems.map((s) => (
             <div key={s.id} className="flex items-center justify-between border-b border-gray-800 pb-2 last:border-none">
               <div className="flex items-center gap-3">
                 <div className="text-sm font-semibold">{s.symbol}</div>

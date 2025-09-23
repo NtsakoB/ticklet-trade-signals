@@ -21,7 +21,16 @@ export default function OverviewPanel() {
           SignalsService.fetchSignals("lowest"),
         ]);
         if (!alive) return;
-        setRecent(b); setLowEntry(c); setMissed(d); setLowPrice(e);
+        // Guard against non-arrays
+        setRecent(Array.isArray(b) ? b : []); 
+        setLowEntry(Array.isArray(c) ? c : []); 
+        setMissed(Array.isArray(d) ? d : []); 
+        setLowPrice(Array.isArray(e) ? e : []);
+      } catch (error) {
+        // On error, set all to empty arrays to avoid crashes
+        if (alive) {
+          setRecent([]); setLowEntry([]); setMissed([]); setLowPrice([]);
+        }
       } finally {
         if (alive) setLoading(false);
       }
