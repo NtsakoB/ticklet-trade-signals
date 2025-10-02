@@ -77,15 +77,15 @@ export function LiveStatsCards({ refreshInterval = 30000 }: { refreshInterval?: 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Active Signals" value={String(safeActiveSignals)} description="Live trading signals"
-          chart={safePerformanceHistory.slice(-10).map(p => ({ value: p?.trades_count || 0 }))}
+          chart={safePerformanceHistory.slice(-10).filter(p => p).map(p => ({ value: p.trades_count || 0 }))}
           trend={safeActiveSignals > 5 ? "up" : safeActiveSignals > 0 ? "neutral" : "down"} isLive />
         <StatCard title="Executed Trades" value={String(safeExecutedTrades)} description="Total completed trades"
-          chart={safePerformanceHistory.slice(-10).map(p => ({ value: p?.trades_count || 0 }))} trend="neutral" />
+          chart={safePerformanceHistory.slice(-10).filter(p => p).map(p => ({ value: p.trades_count || 0 }))} trend="neutral" />
         <StatCard title="Win Rate" value={`${winRatePct}%`} description="Overall success rate"
-          chart={safePerformanceHistory.slice(-10).map(p => ({ value: (p?.win_rate || 0) * 100 }))}
+          chart={safePerformanceHistory.slice(-10).filter(p => p).map(p => ({ value: (p.win_rate || 0) * 100 }))}
           trend={safeWinRate > 0.6 ? "up" : safeWinRate > 0.4 ? "neutral" : "down"} />
         <StatCard title="Capital at Risk" value={`$${safeCapitalAtRisk.toLocaleString()}`} description="Current exposure"
-          chart={safePerformanceHistory.slice(-10).map(p => ({ value: (p?.balance || 0) / 100 }))}
+          chart={safePerformanceHistory.slice(-10).filter(p => p).map(p => ({ value: (p.balance || 0) / 100 }))}
           trend={safeCapitalAtRisk > safeTotalBalance * 0.5 ? "down" : "neutral"} />
       </div>
 
@@ -103,7 +103,7 @@ export function LiveStatsCards({ refreshInterval = 30000 }: { refreshInterval?: 
             </div>
             <div className="h-16 w-32">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={safePerformanceHistory.slice(-20)}>
+                <LineChart data={safePerformanceHistory.slice(-20).filter(p => p)}>
                   <Line type="monotone" dataKey="balance" stroke={safeTotalBalance > safeStartingBalance ? "#10b981" : "#ef4444"} strokeWidth={2} dot={false}/>
                 </LineChart>
               </ResponsiveContainer>

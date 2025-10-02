@@ -14,8 +14,10 @@ export default function LiveOverviewPanel() {
   const handleGenerateSignal = async () => {
     try {
       const r = await SignalsService.generateSignal();
-      const msg = r.emitted.length ? `New signal generated for ${r.emitted.join(', ')}` :
-                r.missed.length ? `Signal for ${r.missed.join(', ')} didn't pass filters` :
+      const emitted = Array.isArray(r?.emitted) ? r.emitted : [];
+      const missed = Array.isArray(r?.missed) ? r.missed : [];
+      const msg = emitted.length ? `New signal generated for ${emitted.join(', ')}` :
+                missed.length ? `Signal for ${missed.join(', ')} didn't pass filters` :
                 'No signals generated';
       alert(msg);
     } catch {
@@ -112,16 +114,20 @@ export default function LiveOverviewPanel() {
               </div>
             </div>
 
-            {(selectedSignal.targets || []).filter(t => t > 0).length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs text-muted-foreground mb-2">Take Profit Targets</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedSignal.targets.filter(t => t > 0).map((t, i) => (
-                    <span key={i} className="text-xs px-2 py-0.5 rounded border border-green-400/30 text-green-400">TP{i+1}: ${t.toFixed(4)}</span>
-                  ))}
+            {(() => {
+              const targets = Array.isArray(selectedSignal.targets) ? selectedSignal.targets : [];
+              const validTargets = targets.filter(t => t > 0);
+              return validTargets.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Take Profit Targets</p>
+                  <div className="flex flex-wrap gap-2">
+                    {validTargets.map((t, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border border-green-400/30 text-green-400">TP{i+1}: ${t.toFixed(4)}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       )}
