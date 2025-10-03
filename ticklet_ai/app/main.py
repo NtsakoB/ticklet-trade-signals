@@ -306,7 +306,11 @@ app.include_router(settings_trading.router)               # exposes /api/setting
 
 # Live signals router
 from ticklet_ai.app.routers.live_signals import router as live_signals_router
-app.include_router(live_signals_router)                   # exposes /api/live-signals/...
+app.include_router(live_signals_router)  # exposes /api/live-signals/...
+
+# Signal generation router
+from ticklet_ai.app.routers.generate import router as generate_router
+app.include_router(generate_router)  # exposes /api/signals/generate
 
 @app.get("/settings")
 async def settings():
